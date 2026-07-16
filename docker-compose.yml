@@ -1,0 +1,55 @@
+services:
+  # Veritabanı: MSSQL Server 2022
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: invoiceapp-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      # MSSQL 2022 imajında araçlar mssql-tools18 altında, -C sertifikayı otomatik güvenilir sayar
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Ilk acilista MSSQL sistem veritabanlarini kurar, 1-2 dakika surebilir.
+      # Bu sure zarfindaki basarisiz denemeler sayilmaz.
+      start_period: 90s
+    restart: unless-stopped
+
+  # Backend: ASP.NET Core Web API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: invoiceapp-api
+    depends_on:
+      mssql:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=InvoiceAppDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      ASPNETCORE_ENVIRONMENT: "Production"
+    ports:
+      - "5000:8080"
+    restart: unless-stopped
+
+  # Frontend: Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: invoiceapp-web
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:5000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  mssql-data:

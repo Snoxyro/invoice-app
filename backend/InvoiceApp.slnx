@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="InvoiceApp.Api/InvoiceApp.Api.csproj" />
+  <Project Path="InvoiceApp.Common/InvoiceApp.Common.csproj" />
+  <Project Path="InvoiceApp.Repository/InvoiceApp.Repository.csproj" />
+  <Project Path="InvoiceApp.Service/InvoiceApp.Service.csproj" />
+</Solution>
