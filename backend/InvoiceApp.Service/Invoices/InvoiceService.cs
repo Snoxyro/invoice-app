@@ -1,0 +1,212 @@
+using InvoiceApp.Common.Dtos.Invoices;
+using InvoiceApp.Common.Entities;
+using InvoiceApp.Common.Exceptions;
+using InvoiceApp.Common.Paging;
+using InvoiceApp.Repository;
+using InvoiceApp.Repository.Extensions;
+using Microsoft.EntityFrameworkCore;
+
+namespace InvoiceApp.Service.Invoices;
+
+public class InvoiceService : IInvoiceService
+{
+    private readonly IRepository<Invoice> _invoiceRepository;
+    private readonly IRepository<Customer> _customerRepository;
+
+    public InvoiceService(IRepository<Invoice> invoiceRepository, IRepository<Customer> customerRepository)
+    {
+        _invoiceRepository = invoiceRepository;
+        _customerRepository = customerRepository;
+    }
+
+    public async Task<InvoiceResponse> CreateAsync(int currentUserId, InvoiceCreateRequest request)
+    {
+        var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
+
+        if (request.Lines.Count == 0)
+        {
+            throw new BusinessRuleException("Fatura en az bir kalem içermelidir.");
+        }
+
+        var invoice = new Invoice
+        {
+            CustomerId = request.CustomerId,
+            InvoiceNumber = request.InvoiceNumber,
+            InvoiceDate = request.InvoiceDate,
+            UserId = currentUserId,
+            InvoiceLines = request.Lines.Select(l => new InvoiceLine
+            {
+                ItemName = l.ItemName,
+                Quantity = l.Quantity,
+                Price = l.Price,
+                UserId = currentUserId
+            }).ToList()
+        };
+
+        invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
+
+        await _invoiceRepository.AddAsync(invoice);
+        await _invoiceRepository.SaveChangesAsync();
+
+        return MapToResponse(invoice, customer.Title);
+    }
+
+    public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
+    {
+        var invoice = await _invoiceRepository.Query()
+            .Include(i => i.InvoiceLines)
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+
+        if (invoice is null)
+        {
+            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+        }
+
+        var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
+
+        if (request.Lines.Count == 0)
+        {
+            throw new BusinessRuleException("Fatura en az bir kalem içermelidir.");
+        }
+
+        invoice.CustomerId = request.CustomerId;
+        invoice.InvoiceNumber = request.InvoiceNumber;
+        invoice.InvoiceDate = request.InvoiceDate;
+
+        invoice.InvoiceLines.Clear();
+
+        foreach (var line in request.Lines)
+        {
+            invoice.InvoiceLines.Add(new InvoiceLine
+            {
+                ItemName = line.ItemName,
+                Quantity = line.Quantity,
+                Price = line.Price,
+                UserId = currentUserId
+            });
+        }
+
+        invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
+
+        _invoiceRepository.Update(invoice);
+        await _invoiceRepository.SaveChangesAsync();
+
+        return MapToResponse(invoice, customer.Title);
+    }
+
+    public async Task DeleteAsync(int currentUserId, int invoiceId)
+    {
+        var invoice = await _invoiceRepository.Query()
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+
+        if (invoice is null)
+        {
+            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+        }
+
+        invoice.IsDeleted = true;
+        invoice.DeletedDate = DateTime.UtcNow;
+
+        _invoiceRepository.Update(invoice);
+        await _invoiceRepository.SaveChangesAsync();
+    }
+
+    public async Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId)
+    {
+        var invoice = await _invoiceRepository.Query()
+            .Include(i => i.InvoiceLines)
+            .Include(i => i.Customer)
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+
+        if (invoice is null)
+        {
+            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+        }
+
+        return MapToResponse(invoice, invoice.Customer.Title);
+    }
+
+    public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
+    {
+        var query = _invoiceRepository.Query()
+            .Include(i => i.Customer)
+            .Where(i => i.UserId == currentUserId);
+
+        if (request.StartDate.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate >= request.StartDate.Value);
+        }
+
+        if (request.EndDate.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate <= request.EndDate.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            query = query.Where(i =>
+                i.InvoiceNumber.Contains(request.SearchTerm) ||
+                i.Customer.Title.Contains(request.SearchTerm));
+        }
+
+        query = request.SortBy?.ToLower() switch
+        {
+            "customer" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(i => i.Customer.Title)
+                : query.OrderBy(i => i.Customer.Title),
+            _ => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(i => i.InvoiceDate)
+                : query.OrderBy(i => i.InvoiceDate)
+        };
+
+        var pagedInvoices = await query.ToPagedResultAsync(request.Page, request.PageSize);
+
+        return new PagedResult<InvoiceListItemResponse>
+        {
+            Items = pagedInvoices.Items.Select(i => new InvoiceListItemResponse
+            {
+                InvoiceId = i.InvoiceId,
+                InvoiceNumber = i.InvoiceNumber,
+                InvoiceDate = i.InvoiceDate,
+                TotalAmount = i.TotalAmount,
+                CustomerId = i.CustomerId,
+                CustomerTitle = i.Customer.Title,
+                CreatedDate = i.CreatedDate,
+                UpdatedDate = i.UpdatedDate
+            }).ToList(),
+            TotalCount = pagedInvoices.TotalCount,
+            Page = pagedInvoices.Page,
+            PageSize = pagedInvoices.PageSize
+        };
+    }
+
+    private async Task<Customer> GetOwnedCustomerAsync(int currentUserId, int customerId)
+    {
+        var customer = await _customerRepository.Query()
+            .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.UserId == currentUserId);
+
+        return customer ?? throw new NotFoundException($"CustomerId {customerId} bulunamadı.");
+    }
+
+    private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle)
+    {
+        return new InvoiceResponse
+        {
+            InvoiceId = invoice.InvoiceId,
+            InvoiceNumber = invoice.InvoiceNumber,
+            InvoiceDate = invoice.InvoiceDate,
+            TotalAmount = invoice.TotalAmount,
+            CustomerId = invoice.CustomerId,
+            CustomerTitle = customerTitle,
+            CreatedDate = invoice.CreatedDate,
+            UpdatedDate = invoice.UpdatedDate,
+            Lines = invoice.InvoiceLines.Select(l => new InvoiceLineResponse
+            {
+                InvoiceLineId = l.InvoiceLineId,
+                ItemName = l.ItemName,
+                Quantity = l.Quantity,
+                Price = l.Price
+            }).ToList()
+        };
+    }
+}
