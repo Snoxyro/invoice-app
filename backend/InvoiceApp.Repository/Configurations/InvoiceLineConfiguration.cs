@@ -17,8 +17,8 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
         builder.HasOne(il => il.Invoice)
             .WithMany(i => i.InvoiceLines)
             .HasForeignKey(il => il.InvoiceId)
-            // Cascade: bir Invoice (hard delete senaryosunda) silinirse kalemlerinin de
-            // silinmesi mantıklı, çünkü kalemler faturasız bir anlam taşımıyor.
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasQueryFilter(il => !il.Invoice.IsDeleted);
     }
 }
