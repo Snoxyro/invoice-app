@@ -1,17 +1,17 @@
-# --- Aşama 1: Dependencies ---
+# --- Dependencies ---
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# --- Aşama 2: Build ---
+# --- Build ---
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# --- Aşama 3: Runtime (standalone çıktı ile küçük imaj) ---
+# --- Runtime ---
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
