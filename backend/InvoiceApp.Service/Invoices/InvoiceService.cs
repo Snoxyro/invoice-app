@@ -21,6 +21,16 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceResponse> CreateAsync(int currentUserId, InvoiceCreateRequest request)
     {
+        var invoiceNumberExists = await _invoiceRepository.Query()
+            .AnyAsync(i => i.UserId == currentUserId && i.InvoiceNumber == request.InvoiceNumber);
+
+        if (invoiceNumberExists)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.InvoiceNumberAlreadyExists,
+                new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
+        }
+
         var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
 
         if (request.Lines.Count == 0)
@@ -62,6 +72,19 @@ public class InvoiceService : IInvoiceService
             throw new NotFoundException(
                 ErrorCodes.InvoiceNotFound,
                 new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
+        }
+
+        var invoiceNumberExists = await _invoiceRepository.Query()
+            .AnyAsync(i =>
+                i.UserId == currentUserId &&
+                i.InvoiceNumber == request.InvoiceNumber &&
+                i.InvoiceId != invoiceId);
+
+        if (invoiceNumberExists)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.InvoiceNumberAlreadyExists,
+                new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
         }
 
         var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
@@ -160,6 +183,12 @@ public class InvoiceService : IInvoiceService
             "customer" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(i => i.Customer.Title)
                 : query.OrderBy(i => i.Customer.Title),
+            "createddate" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(i => i.CreatedDate)
+                : query.OrderBy(i => i.CreatedDate),
+            "updateddate" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(i => i.UpdatedDate)
+                : query.OrderBy(i => i.UpdatedDate),
             _ => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(i => i.InvoiceDate)
                 : query.OrderBy(i => i.InvoiceDate)

@@ -5,6 +5,7 @@ using InvoiceApp.Common.Paging;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace InvoiceApp.Service.Customers;
 
@@ -21,6 +22,21 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerResponse> CreateAsync(int currentUserId, CustomerCreateRequest request)
     {
+        if (!Regex.IsMatch(request.TaxNumber, "^[0-9]+$"))
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidTaxNumberFormat);
+        }
+
+        var taxNumberExists = await _customerRepository.Query()
+            .AnyAsync(c => c.UserId == currentUserId && c.TaxNumber == request.TaxNumber);
+
+        if (taxNumberExists)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.CustomerTaxNumberAlreadyExists,
+                new Dictionary<string, string> { ["taxNumber"] = request.TaxNumber });
+        }
+
         var customer = new Customer
         {
             TaxNumber = request.TaxNumber,
@@ -39,6 +55,24 @@ public class CustomerService : ICustomerService
     public async Task<CustomerResponse> UpdateAsync(int currentUserId, int customerId, CustomerUpdateRequest request)
     {
         var customer = await GetOwnedCustomerAsync(currentUserId, customerId);
+
+        if (!Regex.IsMatch(request.TaxNumber, "^[0-9]+$"))
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidTaxNumberFormat);
+        }
+
+        var taxNumberExists = await _customerRepository.Query()
+            .AnyAsync(c =>
+                c.UserId == currentUserId &&
+                c.TaxNumber == request.TaxNumber &&
+                c.CustomerId != customerId);
+
+        if (taxNumberExists)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.CustomerTaxNumberAlreadyExists,
+                new Dictionary<string, string> { ["taxNumber"] = request.TaxNumber });
+        }
 
         customer.TaxNumber = request.TaxNumber;
         customer.Title = request.Title;
@@ -88,6 +122,9 @@ public class CustomerService : ICustomerService
             "title" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(c => c.Title)
                 : query.OrderBy(c => c.Title),
+            "updateddate" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(c => c.UpdatedDate)
+                : query.OrderBy(c => c.UpdatedDate),
             _ => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(c => c.CreatedDate)
                 : query.OrderBy(c => c.CreatedDate)

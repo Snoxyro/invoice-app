@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LayoutDashboard, LogOut, Settings, Users } from "lucide-react";
+import { Building2, LayoutDashboard, LogOut, Receipt, Settings, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +25,10 @@ export function AppSidebar() {
   const t = useTranslations("nav");
 
   const adminItems = [{ href: "/admin/users", label: t("users"), icon: Users }];
-  const firmItems: { href: string; label: string; icon: typeof Users }[] = [];
+  const firmItems = [
+    { href: "/customers", label: t("customers"), icon: Building2 },
+    { href: "/invoices", label: t("invoices"), icon: Receipt },
+  ];
   const items = user?.role === "Admin" ? adminItems : firmItems;
 
   return (

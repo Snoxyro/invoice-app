@@ -10,6 +10,7 @@ interface UsePagedListOptions {
   pageSize?: number;
   sortBy?: string;
   sortDirection?: SortDirection;
+  extraParams?: Record<string, string | undefined>;
 }
 
 export function usePagedList<T>(endpoint: string, options: UsePagedListOptions = {}) {
@@ -27,6 +28,8 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const extraParamsKey = JSON.stringify(options.extraParams ?? {});
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setSearchTerm(searchInput);
@@ -35,6 +38,10 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
 
     return () => clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [extraParamsKey]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -54,6 +61,14 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
 
     query.set("sortDirection", sortDirection);
 
+    if (options.extraParams) {
+      for (const [key, value] of Object.entries(options.extraParams)) {
+        if (value) {
+          query.set(key, value);
+        }
+      }
+    }
+
     try {
       const result = await apiFetch<PagedResult<T>>(`${endpoint}?${query.toString()}`);
       setData(result);
@@ -62,7 +77,7 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
     } finally {
       setIsLoading(false);
     }
-  }, [endpoint, page, pageSize, searchTerm, sortBy, sortDirection, t, tErrors]);
+  }, [endpoint, page, pageSize, searchTerm, sortBy, sortDirection, extraParamsKey, t, tErrors]);
 
   useEffect(() => {
     load();
