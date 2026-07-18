@@ -1,9 +1,9 @@
-export function formatDateTime(isoString: string | null): string {
+export function formatDateTime(isoString: string | null, locale: string = "tr-TR"): string {
   if (!isoString) {
     return "-";
   }
 
-  return new Date(isoString).toLocaleString("tr-TR", {
+  return new Date(isoString).toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   });

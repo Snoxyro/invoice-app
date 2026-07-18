@@ -27,7 +27,7 @@ public class AuthService : IAuthService
 
         if (user is null || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
-            throw new BusinessRuleException("Kullanıcı adı veya şifre hatalı.");
+            throw new BusinessRuleException(ErrorCodes.InvalidCredentials);
         }
 
         var tokenResult = _tokenService.GenerateToken(user);

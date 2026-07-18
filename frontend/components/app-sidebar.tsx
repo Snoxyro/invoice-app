@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { LayoutDashboard, LogOut, Settings, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,13 +19,13 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
-const adminItems = [{ href: "/admin/users", label: "Kullanıcılar", icon: Users }];
-
-const firmItems: { href: string; label: string; icon: typeof Users }[] = [];
-
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const t = useTranslations("nav");
+
+  const adminItems = [{ href: "/admin/users", label: t("users"), icon: Users }];
+  const firmItems: { href: string; label: string; icon: typeof Users }[] = [];
   const items = user?.role === "Admin" ? adminItems : firmItems;
 
   return (
@@ -39,17 +40,17 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menü</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("menu")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href="/" />}
                   isActive={pathname === "/"}
-                  tooltip="Ana Sayfa"
+                  tooltip={t("home")}
                 >
                   <LayoutDashboard />
-                  <span>Ana Sayfa</span>
+                  <span>{t("home")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {items.map((item) => (
@@ -71,9 +72,19 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={logout} tooltip="Çıkış Yap">
+            <SidebarMenuButton
+              render={<Link href="/settings" />}
+              isActive={pathname === "/settings"}
+              tooltip={t("settings")}
+            >
+              <Settings />
+              <span>{t("settings")}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={logout} tooltip={t("logout")}>
               <LogOut />
-              <span>Çıkış Yap</span>
+              <span>{t("logout")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

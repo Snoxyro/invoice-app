@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiErrorMessage } from "@/lib/apiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +14,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const t = useTranslations("login");
+  const tErrors = useTranslations("errors");
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,7 @@ export default function LoginPage() {
     try {
       await login(userName, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Giriş başarısız");
+      setError(getApiErrorMessage(err, tErrors, t("genericError")));
     } finally {
       setIsSubmitting(false);
     }
@@ -36,15 +41,18 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="fixed top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Giriş Yap</CardTitle>
-          <CardDescription>Fatura yönetim sistemine erişmek için giriş yapın</CardDescription>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="userName">Kullanıcı Adı</Label>
+              <Label htmlFor="userName">{t("username")}</Label>
               <Input
                 id="userName"
                 value={userName}
@@ -54,7 +62,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Şifre</Label>
+              <Label htmlFor="password">{t("password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -65,7 +73,7 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Giriş yapılıyor..." : "Giriş Yap"}
+              {isSubmitting ? t("submitting") : t("submit")}
             </Button>
           </form>
         </CardContent>

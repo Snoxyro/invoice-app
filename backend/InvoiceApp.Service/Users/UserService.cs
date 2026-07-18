@@ -34,7 +34,9 @@ public class UserService : IUserService
 
         if (nameExists)
         {
-            throw new BusinessRuleException($"'{request.UserName}' kullanıcı adı zaten kullanılıyor.");
+            throw new BusinessRuleException(
+                ErrorCodes.UsernameAlreadyExists,
+                new Dictionary<string, string> { ["userName"] = request.UserName });
         }
 
         var user = new User
@@ -53,14 +55,18 @@ public class UserService : IUserService
     public async Task<UserResponse> UpdateAsync(int userId, UserUpdateRequest request)
     {
         var user = await _userRepository.GetByIdAsync(userId)
-            ?? throw new NotFoundException($"UserId {userId} bulunamadı.");
+            ?? throw new NotFoundException(
+                ErrorCodes.UserNotFound,
+                new Dictionary<string, string> { ["userId"] = userId.ToString() });
 
         var nameExists = await _userRepository.Query()
             .AnyAsync(u => u.UserName == request.UserName && u.UserId != userId);
 
         if (nameExists)
         {
-            throw new BusinessRuleException($"'{request.UserName}' kullanıcı adı zaten kullanılıyor.");
+            throw new BusinessRuleException(
+                ErrorCodes.UsernameAlreadyExists,
+                new Dictionary<string, string> { ["userName"] = request.UserName });
         }
 
         user.UserName = request.UserName;
@@ -80,7 +86,9 @@ public class UserService : IUserService
     public async Task DeleteAsync(int userId)
     {
         var user = await _userRepository.GetByIdAsync(userId)
-            ?? throw new NotFoundException($"UserId {userId} bulunamadı.");
+            ?? throw new NotFoundException(
+                ErrorCodes.UserNotFound,
+                new Dictionary<string, string> { ["userId"] = userId.ToString() });
 
         if (user.Role == UserRole.Firm)
         {
@@ -89,7 +97,7 @@ public class UserService : IUserService
 
             if (hasCustomers || hasInvoices)
             {
-                throw new BusinessRuleException("Bu firmanın kayıtlı müşteri veya faturaları olduğu için silinemez.");
+                throw new BusinessRuleException(ErrorCodes.FirmHasRecordsCannotDelete);
             }
         }
 
@@ -100,7 +108,9 @@ public class UserService : IUserService
     public async Task<UserResponse> GetByIdAsync(int userId)
     {
         var user = await _userRepository.GetByIdAsync(userId)
-            ?? throw new NotFoundException($"UserId {userId} bulunamadı.");
+            ?? throw new NotFoundException(
+                ErrorCodes.UserNotFound,
+                new Dictionary<string, string> { ["userId"] = userId.ToString() });
 
         return MapToResponse(user);
     }

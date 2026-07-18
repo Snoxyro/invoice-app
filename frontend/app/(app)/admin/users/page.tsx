@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { usePagedList } from "@/hooks/usePagedList";
 import { PagedTable, type PagedTableColumn } from "@/components/paged-table";
 import { formatDateTime } from "@/lib/formatDate";
@@ -12,32 +13,34 @@ interface UserResponse {
   updatedDate: string | null;
 }
 
-const columns: PagedTableColumn<UserResponse>[] = [
-  {
-    key: "userName",
-    header: "Kullanıcı Adı",
-    sortKey: "username",
-    render: (u) => u.userName,
-  },
-  {
-    key: "role",
-    header: "Rol",
-    render: (u) => (u.role === "Admin" ? "Admin" : "Firma"),
-  },
-  {
-    key: "createdDate",
-    header: "Oluşturulma",
-    sortKey: "createddate",
-    render: (u) => formatDateTime(u.createdDate),
-  },
-];
-
 export default function AdminUsersPage() {
   const list = usePagedList<UserResponse>("/api/Admin/users");
+  const t = useTranslations("adminUsers");
+  const tRoles = useTranslations("roles");
+
+  const columns: PagedTableColumn<UserResponse>[] = [
+    {
+      key: "userName",
+      header: t("columnUsername"),
+      sortKey: "username",
+      render: (u) => u.userName,
+    },
+    {
+      key: "role",
+      header: t("columnRole"),
+      render: (u) => (u.role === "Admin" ? tRoles("admin") : tRoles("firm")),
+    },
+    {
+      key: "createdDate",
+      header: t("columnCreatedDate"),
+      sortKey: "createddate",
+      render: (u) => formatDateTime(u.createdDate),
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-4 text-2xl font-semibold">Kullanıcılar</h1>
+      <h1 className="mb-4 text-2xl font-semibold">{t("title")}</h1>
       <PagedTable
         columns={columns}
         items={list.data?.items ?? []}

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiErrorMessage";
 import type { PagedResult, SortDirection } from "@/lib/paging";
 
 interface UsePagedListOptions {
@@ -11,6 +13,8 @@ interface UsePagedListOptions {
 }
 
 export function usePagedList<T>(endpoint: string, options: UsePagedListOptions = {}) {
+  const t = useTranslations("table");
+  const tErrors = useTranslations("errors");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(options.pageSize ?? 10);
   const [searchInput, setSearchInput] = useState("");
@@ -54,11 +58,11 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
       const result = await apiFetch<PagedResult<T>>(`${endpoint}?${query.toString()}`);
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Veri yüklenemedi");
+      setError(getApiErrorMessage(err, tErrors, t("loadError")));
     } finally {
       setIsLoading(false);
     }
-  }, [endpoint, page, pageSize, searchTerm, sortBy, sortDirection]);
+  }, [endpoint, page, pageSize, searchTerm, sortBy, sortDirection, t, tErrors]);
 
   useEffect(() => {
     load();

@@ -1,8 +1,9 @@
 namespace InvoiceApp.Common.Exceptions;
 
-public class BusinessRuleException : Exception
+public class BusinessRuleException : AppException
 {
-    public BusinessRuleException(string message) : base(message)
+    public BusinessRuleException(string errorCode, IReadOnlyDictionary<string, string>? parameters = null)
+        : base(errorCode, parameters)
     {
     }
 }

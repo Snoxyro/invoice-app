@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -67,15 +68,17 @@ export function PagedTable<T>({
   onSort,
   getRowKey,
   renderExpandedRow,
-  emptyMessage = "Kayıt bulunamadı",
+  emptyMessage,
 }: PagedTableProps<T>) {
+  const t = useTranslations("table");
   const columnCount = columns.length + (renderExpandedRow ? 1 : 0);
+  const resolvedEmptyMessage = emptyMessage ?? t("empty");
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <Input
-          placeholder="Ara..."
+          placeholder={t("searchPlaceholder")}
           value={searchInput}
           onChange={(e) => onSearchChange(e.target.value)}
           className="max-w-xs"
@@ -127,7 +130,7 @@ export function PagedTable<T>({
             {isLoading && (
               <TableRow>
                 <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
-                  Yükleniyor...
+                  {t("loading")}
                 </TableCell>
               </TableRow>
             )}
@@ -141,7 +144,7 @@ export function PagedTable<T>({
             {!isLoading && !error && items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
-                  {emptyMessage}
+                  {resolvedEmptyMessage}
                 </TableCell>
               </TableRow>
             )}
@@ -160,7 +163,7 @@ export function PagedTable<T>({
       </div>
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>Toplam {totalCount} kayıt</span>
+        <span>{t("totalRecords", { count: totalCount })}</span>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -170,9 +173,7 @@ export function PagedTable<T>({
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <span>
-            Sayfa {page} / {totalPages || 1}
-          </span>
+          <span>{t("pageOf", { page, totalPages: totalPages || 1 })}</span>
           <Button
             variant="outline"
             size="icon-sm"
@@ -197,6 +198,7 @@ function PagedTableRow<T>({
   renderExpandedRow?: (item: T) => ReactNode;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const t = useTranslations("table");
 
   return (
     <>
@@ -207,7 +209,7 @@ function PagedTableRow<T>({
         {renderExpandedRow && (
           <TableCell>
             <Button variant="ghost" size="sm" onClick={() => setIsExpanded((prev) => !prev)}>
-              {isExpanded ? "Gizle" : "Detayları Göster"}
+              {isExpanded ? t("hideDetails") : t("showDetails")}
             </Button>
           </TableCell>
         )}

@@ -4,10 +4,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export class ApiError extends Error {
   status: number;
+  errorCode: string;
+  params: Record<string, string>;
 
-  constructor(message: string, status: number) {
-    super(message);
+  constructor(errorCode: string, status: number, params: Record<string, string> = {}) {
+    super(errorCode);
     this.status = status;
+    this.errorCode = errorCode;
+    this.params = params;
   }
 }
 
@@ -26,12 +30,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (response.status === 401) {
     clearToken();
     window.location.href = "/login";
-    throw new ApiError("Oturum süresi doldu", 401);
+    throw new ApiError("SESSION_EXPIRED", 401);
   }
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new ApiError(body?.message ?? "Bir hata oluştu", response.status);
+    throw new ApiError(body?.errorCode ?? "UNEXPECTED_ERROR", response.status, body?.parameters ?? {});
   }
 
   if (response.status === 204) {

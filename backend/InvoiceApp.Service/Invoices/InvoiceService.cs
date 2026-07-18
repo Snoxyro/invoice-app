@@ -25,7 +25,7 @@ public class InvoiceService : IInvoiceService
 
         if (request.Lines.Count == 0)
         {
-            throw new BusinessRuleException("Fatura en az bir kalem içermelidir.");
+            throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
         }
 
         var invoice = new Invoice
@@ -59,14 +59,16 @@ public class InvoiceService : IInvoiceService
 
         if (invoice is null)
         {
-            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+            throw new NotFoundException(
+                ErrorCodes.InvoiceNotFound,
+                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
         }
 
         var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
 
         if (request.Lines.Count == 0)
         {
-            throw new BusinessRuleException("Fatura en az bir kalem içermelidir.");
+            throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
         }
 
         invoice.CustomerId = request.CustomerId;
@@ -101,7 +103,9 @@ public class InvoiceService : IInvoiceService
 
         if (invoice is null)
         {
-            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+            throw new NotFoundException(
+                ErrorCodes.InvoiceNotFound,
+                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
         }
 
         invoice.IsDeleted = true;
@@ -120,7 +124,9 @@ public class InvoiceService : IInvoiceService
 
         if (invoice is null)
         {
-            throw new NotFoundException($"InvoiceId {invoiceId} bulunamadı.");
+            throw new NotFoundException(
+                ErrorCodes.InvoiceNotFound,
+                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
         }
 
         return MapToResponse(invoice, invoice.Customer.Title);
@@ -185,7 +191,9 @@ public class InvoiceService : IInvoiceService
         var customer = await _customerRepository.Query()
             .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.UserId == currentUserId);
 
-        return customer ?? throw new NotFoundException($"CustomerId {customerId} bulunamadı.");
+        return customer ?? throw new NotFoundException(
+            ErrorCodes.CustomerNotFound,
+            new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
     }
 
     private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle)

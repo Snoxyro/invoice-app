@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "home": "Home",
+    "menu": "Menu",
+    "users": "Users",
+    "settings": "Settings",
+    "logout": "Log Out"
+  },
+  "home": {
+    "greetingPrefix": "Hello,"
+  },
+  "roles": {
+    "admin": "Admin",
+    "firm": "Firm"
+  },
+  "login": {
+    "title": "Sign In",
+    "description": "Sign in to access the invoice management system",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign In",
+    "submitting": "Signing in...",
+    "genericError": "Sign in failed"
+  },
+  "adminUsers": {
+    "title": "Users",
+    "columnUsername": "Username",
+    "columnRole": "Role",
+    "columnCreatedDate": "Created"
+  },
+  "settings": {
+    "title": "Settings",
+    "languageTitle": "Language",
+    "languageLabel": "Application language"
+  },
+  "errors": {
+    "INVALID_CREDENTIALS": "Incorrect username or password",
+    "USERNAME_ALREADY_EXISTS": "The username '{userName}' is already taken",
+    "USER_NOT_FOUND": "User not found",
+    "FIRM_HAS_RECORDS_CANNOT_DELETE": "This firm cannot be deleted because it has customers or invoices on record",
+    "CUSTOMER_NOT_FOUND": "Customer not found",
+    "CUSTOMER_HAS_INVOICES_CANNOT_DELETE": "This customer cannot be deleted because it has invoices on record",
+    "INVOICE_NOT_FOUND": "Invoice not found",
+    "INVOICE_REQUIRES_AT_LEAST_ONE_LINE": "An invoice must contain at least one line item",
+    "SESSION_EXPIRED": "Your session has expired",
+    "UNEXPECTED_ERROR": "An unexpected error occurred"
+  },
+  "table": {
+    "searchPlaceholder": "Search...",
+    "empty": "No records found",
+    "loading": "Loading...",
+    "totalRecords": "{count} records total",
+    "pageOf": "Page {page} of {totalPages}",
+    "showDetails": "Show Details",
+    "hideDetails": "Hide",
+    "loadError": "Failed to load data"
+  }
+}

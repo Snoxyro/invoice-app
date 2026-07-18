@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      throw new ApiError(body?.message ?? "Giriş başarısız", response.status);
+      throw new ApiError(body?.errorCode ?? "UNEXPECTED_ERROR", response.status, body?.parameters ?? {});
     }
 
     const data: { token: string } = await response.json();

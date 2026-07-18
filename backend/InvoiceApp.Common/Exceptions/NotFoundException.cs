@@ -1,8 +1,9 @@
 namespace InvoiceApp.Common.Exceptions;
 
-public class NotFoundException : Exception
+public class NotFoundException : AppException
 {
-    public NotFoundException(string message) : base(message)
+    public NotFoundException(string errorCode, IReadOnlyDictionary<string, string>? parameters = null)
+        : base(errorCode, parameters)
     {
     }
 }

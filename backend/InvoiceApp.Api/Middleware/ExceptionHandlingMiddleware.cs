@@ -20,17 +20,21 @@ public class ExceptionHandlingMiddleware
         catch (NotFoundException ex)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
-            await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            await context.Response.WriteAsJsonAsync(new { errorCode = ex.ErrorCode, parameters = ex.Params });
         }
         catch (BusinessRuleException ex)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            await context.Response.WriteAsJsonAsync(new { errorCode = ex.ErrorCode, parameters = ex.Params });
         }
         catch (Exception)
         {
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsJsonAsync(new { message = "Beklenmeyen bir hata oluştu." });
+            await context.Response.WriteAsJsonAsync(new
+            {
+                errorCode = ErrorCodes.UnexpectedError,
+                parameters = new Dictionary<string, string>()
+            });
         }
     }
 }

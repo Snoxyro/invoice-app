@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "home": "Ana Sayfa",
+    "menu": "Menü",
+    "users": "Kullanıcılar",
+    "settings": "Ayarlar",
+    "logout": "Çıkış Yap"
+  },
+  "home": {
+    "greetingPrefix": "Merhaba,"
+  },
+  "roles": {
+    "admin": "Admin",
+    "firm": "Firma"
+  },
+  "login": {
+    "title": "Giriş Yap",
+    "description": "Fatura yönetim sistemine erişmek için giriş yapın",
+    "username": "Kullanıcı Adı",
+    "password": "Şifre",
+    "submit": "Giriş Yap",
+    "submitting": "Giriş yapılıyor...",
+    "genericError": "Giriş başarısız"
+  },
+  "adminUsers": {
+    "title": "Kullanıcılar",
+    "columnUsername": "Kullanıcı Adı",
+    "columnRole": "Rol",
+    "columnCreatedDate": "Oluşturulma"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "languageTitle": "Dil",
+    "languageLabel": "Uygulama dili"
+  },
+  "errors": {
+    "INVALID_CREDENTIALS": "Kullanıcı adı veya şifre hatalı",
+    "USERNAME_ALREADY_EXISTS": "'{userName}' kullanıcı adı zaten kullanılıyor",
+    "USER_NOT_FOUND": "Kullanıcı bulunamadı",
+    "FIRM_HAS_RECORDS_CANNOT_DELETE": "Bu firmanın kayıtlı müşteri veya faturaları olduğu için silinemez",
+    "CUSTOMER_NOT_FOUND": "Müşteri bulunamadı",
+    "CUSTOMER_HAS_INVOICES_CANNOT_DELETE": "Bu müşterinin kayıtlı faturaları olduğu için silinemez",
+    "INVOICE_NOT_FOUND": "Fatura bulunamadı",
+    "INVOICE_REQUIRES_AT_LEAST_ONE_LINE": "Fatura en az bir kalem içermelidir",
+    "SESSION_EXPIRED": "Oturum süresi doldu",
+    "UNEXPECTED_ERROR": "Beklenmeyen bir hata oluştu"
+  },
+  "table": {
+    "searchPlaceholder": "Ara...",
+    "empty": "Kayıt bulunamadı",
+    "loading": "Yükleniyor...",
+    "totalRecords": "Toplam {count} kayıt",
+    "pageOf": "Sayfa {page} / {totalPages}",
+    "showDetails": "Detayları Göster",
+    "hideDetails": "Gizle",
+    "loadError": "Veri yüklenemedi"
+  }
+}

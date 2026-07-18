@@ -59,7 +59,7 @@ public class CustomerService : ICustomerService
 
         if (hasInvoices)
         {
-            throw new BusinessRuleException("Bu müşterinin kayıtlı faturaları olduğu için silinemez.");
+            throw new BusinessRuleException(ErrorCodes.CustomerHasInvoicesCannotDelete);
         }
 
         _customerRepository.Remove(customer);
@@ -109,7 +109,9 @@ public class CustomerService : ICustomerService
         var customer = await _customerRepository.Query()
             .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.UserId == currentUserId);
 
-        return customer ?? throw new NotFoundException($"CustomerId {customerId} bulunamadı.");
+        return customer ?? throw new NotFoundException(
+            ErrorCodes.CustomerNotFound,
+            new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
     }
 
     private static CustomerResponse MapToResponse(Customer customer)
