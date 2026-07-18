@@ -42,11 +42,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:5000"
     container_name: invoiceapp-web
     depends_on:
       - backend
-    environment:
-      NEXT_PUBLIC_API_URL: "http://localhost:5000"
     ports:
       - "3000:3000"
     restart: unless-stopped
