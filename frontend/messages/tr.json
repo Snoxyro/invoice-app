@@ -26,7 +26,26 @@
     "title": "Kullanıcılar",
     "columnUsername": "Kullanıcı Adı",
     "columnRole": "Rol",
-    "columnCreatedDate": "Oluşturulma"
+    "columnCreatedDate": "Oluşturulma",
+    "columnActions": "İşlemler",
+    "createButton": "Yeni Kullanıcı",
+    "createTitle": "Yeni Kullanıcı Oluştur",
+    "createDescription": "Sisteme yeni bir kullanıcı ekleyin.",
+    "editTitle": "Kullanıcıyı Düzenle",
+    "editDescription": "Kullanıcı bilgilerini güncelleyin.",
+    "passwordLabel": "Şifre",
+    "newPasswordLabel": "Yeni Şifre (opsiyonel)",
+    "newPasswordHint": "Boş bırakırsanız mevcut şifre değişmez.",
+    "deleteTitle": "Kullanıcıyı Sil",
+    "deleteDescription": "\"{userName}\" kullanıcısını silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+  },
+  "common": {
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "processing": "İşleniyor...",
+    "delete": "Sil",
+    "create": "Oluştur",
+    "edit": "Düzenle"
   },
   "settings": {
     "title": "Ayarlar",
@@ -35,8 +54,9 @@
   },
   "errors": {
     "INVALID_CREDENTIALS": "Kullanıcı adı veya şifre hatalı",
-    "USERNAME_ALREADY_EXISTS": "'{userName}' kullanıcı adı zaten kullanılıyor",
+    "USERNAME_ALREADY_EXISTS": "\"{userName}\" kullanıcı adı zaten kullanılıyor",
     "USER_NOT_FOUND": "Kullanıcı bulunamadı",
+    "CANNOT_DELETE_OWN_ACCOUNT": "Kendi hesabınızı silemezsiniz",
     "FIRM_HAS_RECORDS_CANNOT_DELETE": "Bu firmanın kayıtlı müşteri veya faturaları olduğu için silinemez",
     "CUSTOMER_NOT_FOUND": "Müşteri bulunamadı",
     "CUSTOMER_HAS_INVOICES_CANNOT_DELETE": "Bu müşterinin kayıtlı faturaları olduğu için silinemez",

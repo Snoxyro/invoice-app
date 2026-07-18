@@ -83,8 +83,13 @@ public class UserService : IUserService
         return MapToResponse(user);
     }
 
-    public async Task DeleteAsync(int userId)
+    public async Task DeleteAsync(int userId, int currentUserId)
     {
+        if (userId == currentUserId)
+        {
+            throw new BusinessRuleException(ErrorCodes.CannotDeleteOwnAccount);
+        }
+
         var user = await _userRepository.GetByIdAsync(userId)
             ?? throw new NotFoundException(
                 ErrorCodes.UserNotFound,

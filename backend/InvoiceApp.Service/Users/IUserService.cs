@@ -7,7 +7,7 @@ public interface IUserService
 {
     Task<UserResponse> CreateAsync(UserCreateRequest request);
     Task<UserResponse> UpdateAsync(int userId, UserUpdateRequest request);
-    Task DeleteAsync(int userId);
+    Task DeleteAsync(int userId, int currentUserId);
     Task<UserResponse> GetByIdAsync(int userId);
     Task<PagedResult<UserResponse>> GetPagedAsync(PagedRequest request);
 }

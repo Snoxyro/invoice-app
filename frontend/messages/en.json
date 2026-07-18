@@ -26,7 +26,26 @@
     "title": "Users",
     "columnUsername": "Username",
     "columnRole": "Role",
-    "columnCreatedDate": "Created"
+    "columnCreatedDate": "Created",
+    "columnActions": "Actions",
+    "createButton": "New User",
+    "createTitle": "Create New User",
+    "createDescription": "Add a new user to the system.",
+    "editTitle": "Edit User",
+    "editDescription": "Update the user's information.",
+    "passwordLabel": "Password",
+    "newPasswordLabel": "New Password (optional)",
+    "newPasswordHint": "Leave blank to keep the current password.",
+    "deleteTitle": "Delete User",
+    "deleteDescription": "Are you sure you want to delete \"{userName}\"? This action cannot be undone."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "processing": "Processing...",
+    "delete": "Delete",
+    "create": "Create",
+    "edit": "Edit"
   },
   "settings": {
     "title": "Settings",
@@ -35,8 +54,9 @@
   },
   "errors": {
     "INVALID_CREDENTIALS": "Incorrect username or password",
-    "USERNAME_ALREADY_EXISTS": "The username '{userName}' is already taken",
+    "USERNAME_ALREADY_EXISTS": "The username \"{userName}\" is already taken",
     "USER_NOT_FOUND": "User not found",
+    "CANNOT_DELETE_OWN_ACCOUNT": "You cannot delete your own account",
     "FIRM_HAS_RECORDS_CANNOT_DELETE": "This firm cannot be deleted because it has customers or invoices on record",
     "CUSTOMER_NOT_FOUND": "Customer not found",
     "CUSTOMER_HAS_INVOICES_CANNOT_DELETE": "This customer cannot be deleted because it has invoices on record",

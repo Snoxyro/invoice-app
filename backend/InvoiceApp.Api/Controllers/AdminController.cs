@@ -1,3 +1,4 @@
+using InvoiceApp.Api.Extensions;
 using InvoiceApp.Common.Dtos.Users;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Service.Users;
@@ -49,7 +50,7 @@ public class AdminController : ControllerBase
     [HttpDelete("users/{id:int}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
-        await _userService.DeleteAsync(id);
+        await _userService.DeleteAsync(id, User.GetUserId());
         return NoContent();
     }
 }
