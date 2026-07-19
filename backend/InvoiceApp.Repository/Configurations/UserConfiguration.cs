@@ -23,5 +23,18 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Role)
             .HasConversion<string>()
             .HasMaxLength(20);
+
+        builder.HasOne(u => u.Firm)
+            .WithMany(f => f.Users)
+            .HasForeignKey(u => u.FirmId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(u => u.Profile)
+            .WithMany(p => p.Users)
+            .HasForeignKey(u => u.ProfileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(u => u.FirmId);
+        builder.HasIndex(u => u.ProfileId);
     }
 }

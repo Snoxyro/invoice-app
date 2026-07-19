@@ -8,8 +8,10 @@ public class Invoice : BaseEntity
     public string InvoiceNumber { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public decimal TotalAmount { get; set; }
-    public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public int FirmId { get; set; }
+    public Firm Firm { get; set; } = null!;
+    public int CreatedByUserId { get; set; }
+    public User CreatedByUser { get; set; } = null!;
     public bool IsDeleted { get; set; }
     public DateTime? DeletedDate { get; set; }
     public ICollection<InvoiceLine> InvoiceLines { get; set; } = new List<InvoiceLine>();

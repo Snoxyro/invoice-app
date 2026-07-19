@@ -12,17 +12,24 @@ public class InvoiceService : IInvoiceService
 {
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Customer> _customerRepository;
+    private readonly IRepository<User> _userRepository;
 
-    public InvoiceService(IRepository<Invoice> invoiceRepository, IRepository<Customer> customerRepository)
+    public InvoiceService(
+        IRepository<Invoice> invoiceRepository,
+        IRepository<Customer> customerRepository,
+        IRepository<User> userRepository)
     {
         _invoiceRepository = invoiceRepository;
         _customerRepository = customerRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<InvoiceResponse> CreateAsync(int currentUserId, InvoiceCreateRequest request)
     {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+
         var invoiceNumberExists = await _invoiceRepository.Query()
-            .AnyAsync(i => i.UserId == currentUserId && i.InvoiceNumber == request.InvoiceNumber);
+            .AnyAsync(i => i.FirmId == currentFirmId && i.InvoiceNumber == request.InvoiceNumber);
 
         if (invoiceNumberExists)
         {
@@ -31,7 +38,7 @@ public class InvoiceService : IInvoiceService
                 new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
         }
 
-        var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
+        var customer = await GetOwnedCustomerAsync(currentFirmId, request.CustomerId);
 
         if (request.Lines.Count == 0)
         {
@@ -43,7 +50,8 @@ public class InvoiceService : IInvoiceService
             CustomerId = request.CustomerId,
             InvoiceNumber = request.InvoiceNumber,
             InvoiceDate = request.InvoiceDate,
-            UserId = currentUserId,
+            FirmId = currentFirmId,
+            CreatedByUserId = currentUserId,
             InvoiceLines = request.Lines.Select(l => new InvoiceLine
             {
                 ItemName = l.ItemName,
@@ -63,9 +71,11 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+
         var invoice = await _invoiceRepository.Query()
             .Include(i => i.InvoiceLines)
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
 
         if (invoice is null)
         {
@@ -76,7 +86,7 @@ public class InvoiceService : IInvoiceService
 
         var invoiceNumberExists = await _invoiceRepository.Query()
             .AnyAsync(i =>
-                i.UserId == currentUserId &&
+                i.FirmId == currentFirmId &&
                 i.InvoiceNumber == request.InvoiceNumber &&
                 i.InvoiceId != invoiceId);
 
@@ -87,7 +97,7 @@ public class InvoiceService : IInvoiceService
                 new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
         }
 
-        var customer = await GetOwnedCustomerAsync(currentUserId, request.CustomerId);
+        var customer = await GetOwnedCustomerAsync(currentFirmId, request.CustomerId);
 
         if (request.Lines.Count == 0)
         {
@@ -121,8 +131,10 @@ public class InvoiceService : IInvoiceService
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
     {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+
         var invoice = await _invoiceRepository.Query()
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
 
         if (invoice is null)
         {
@@ -140,10 +152,12 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId)
     {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+
         var invoice = await _invoiceRepository.Query()
             .Include(i => i.InvoiceLines)
             .Include(i => i.Customer)
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.UserId == currentUserId);
+            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
 
         if (invoice is null)
         {
@@ -157,9 +171,11 @@ public class InvoiceService : IInvoiceService
 
     public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
     {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+
         var query = _invoiceRepository.Query()
             .Include(i => i.Customer)
-            .Where(i => i.UserId == currentUserId);
+            .Where(i => i.FirmId == currentFirmId);
 
         if (request.StartDate.HasValue)
         {
@@ -215,10 +231,20 @@ public class InvoiceService : IInvoiceService
         };
     }
 
-    private async Task<Customer> GetOwnedCustomerAsync(int currentUserId, int customerId)
+    private async Task<int> GetCurrentFirmIdAsync(int currentUserId)
+    {
+        var user = await _userRepository.GetByIdAsync(currentUserId)
+            ?? throw new NotFoundException(
+                ErrorCodes.UserNotFound,
+                new Dictionary<string, string> { ["userId"] = currentUserId.ToString() });
+
+        return user.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+    }
+
+    private async Task<Customer> GetOwnedCustomerAsync(int currentFirmId, int customerId)
     {
         var customer = await _customerRepository.Query()
-            .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.UserId == currentUserId);
+            .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.FirmId == currentFirmId);
 
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,

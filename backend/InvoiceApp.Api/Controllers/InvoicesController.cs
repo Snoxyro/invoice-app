@@ -9,7 +9,7 @@ namespace InvoiceApp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Firm")]
+[Authorize(Roles = "FirmUser")]
 public class InvoicesController : ControllerBase
 {
     private readonly IInvoiceService _invoiceService;

@@ -15,13 +15,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Address).HasMaxLength(500);
         builder.Property(c => c.Email).HasMaxLength(200);
 
-        builder.HasOne(c => c.User)
-            .WithMany(u => u.Customers)
-            .HasForeignKey(c => c.UserId)
-            // Restrict: bir Firma yanlışlıkla silinirse müşterileri sessizce silinmesin,
-            // önce müşterilerin ne olacağına karar verilmesi gereksin.
+        builder.HasOne(c => c.Firm)
+            .WithMany(f => f.Customers)
+            .HasForeignKey(c => c.FirmId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(c => c.UserId);
+        builder.HasIndex(c => c.FirmId);
     }
 }

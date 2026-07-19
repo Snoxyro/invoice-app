@@ -12,19 +12,11 @@ namespace InvoiceApp.Service.Users;
 public class UserService : IUserService
 {
     private readonly IRepository<User> _userRepository;
-    private readonly IRepository<Customer> _customerRepository;
-    private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IPasswordHasher _passwordHasher;
 
-    public UserService(
-        IRepository<User> userRepository,
-        IRepository<Customer> customerRepository,
-        IRepository<Invoice> invoiceRepository,
-        IPasswordHasher passwordHasher)
+    public UserService(IRepository<User> userRepository, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
-        _customerRepository = customerRepository;
-        _invoiceRepository = invoiceRepository;
         _passwordHasher = passwordHasher;
     }
 
@@ -94,17 +86,6 @@ public class UserService : IUserService
             ?? throw new NotFoundException(
                 ErrorCodes.UserNotFound,
                 new Dictionary<string, string> { ["userId"] = userId.ToString() });
-
-        if (user.Role == UserRole.Firm)
-        {
-            var hasCustomers = await _customerRepository.Query().AnyAsync(c => c.UserId == userId);
-            var hasInvoices = await _invoiceRepository.Query().AnyAsync(i => i.UserId == userId);
-
-            if (hasCustomers || hasInvoices)
-            {
-                throw new BusinessRuleException(ErrorCodes.FirmHasRecordsCannotDelete);
-            }
-        }
 
         _userRepository.Remove(user);
         await _userRepository.SaveChangesAsync();

@@ -13,13 +13,17 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<Firm> Firms => Set<Firm>();
+    public DbSet<Profile> Profiles => Set<Profile>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<ProfilePermission> ProfilePermissions => Set<ProfilePermission>();
+    public DbSet<VatRate> VatRates => Set<VatRate>();
+    public DbSet<ProfileVatRate> ProfileVatRates => Set<ProfileVatRate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Bu assembly'deki tüm IEntityTypeConfiguration<T> sınıflarını otomatik uygular
-        // (Configurations/ klasöründeki UserConfiguration, CustomerConfiguration, vb.)
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 
