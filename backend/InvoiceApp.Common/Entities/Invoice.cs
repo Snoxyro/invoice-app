@@ -7,7 +7,9 @@ public class Invoice : BaseEntity
     public Customer Customer { get; set; } = null!;
     public string InvoiceNumber { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
-    public decimal TotalAmount { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal VatTotal { get; set; }
+    public decimal GrandTotal { get; set; }
     public int FirmId { get; set; }
     public Firm Firm { get; set; } = null!;
     public int CreatedByUserId { get; set; }

@@ -8,6 +8,8 @@ public class InvoiceLine : BaseEntity
     public string ItemName { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public decimal Price { get; set; }
+    public int VatRateId { get; set; }
+    public VatRate VatRate { get; set; } = null!;
     public int UserId { get; set; }
     public User User { get; set; } = null!;
 }

@@ -11,7 +11,9 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasKey(i => i.InvoiceId);
 
         builder.Property(i => i.InvoiceNumber).IsRequired().HasMaxLength(50);
-        builder.Property(i => i.TotalAmount).HasColumnType("decimal(18,2)");
+        builder.Property(i => i.Subtotal).HasColumnType("decimal(18,2)");
+        builder.Property(i => i.VatTotal).HasColumnType("decimal(18,2)");
+        builder.Property(i => i.GrandTotal).HasColumnType("decimal(18,2)");
 
         builder.HasOne(i => i.Customer)
             .WithMany(c => c.Invoices)

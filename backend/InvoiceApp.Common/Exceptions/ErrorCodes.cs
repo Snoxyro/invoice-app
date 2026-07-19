@@ -29,6 +29,7 @@ public static class ErrorCodes
     public const string CannotGrantBeyondOwnPermissions = "CANNOT_GRANT_BEYOND_OWN_PERMISSIONS";
     public const string InvalidPermissionSelection = "INVALID_PERMISSION_SELECTION";
     public const string InvalidVatRateSelection = "INVALID_VAT_RATE_SELECTION";
+    public const string VatRateNotAllowedForProfile = "VAT_RATE_NOT_ALLOWED_FOR_PROFILE";
     public const string ReadPermissionRequiredForMutation = "READ_PERMISSION_REQUIRED_FOR_MUTATION";
     public const string InvoiceRangeInvalid = "INVOICE_RANGE_INVALID";
     public const string LastFullPermissionUserCannotBeRemoved = "LAST_FULL_PERMISSION_USER_CANNOT_BE_REMOVED";

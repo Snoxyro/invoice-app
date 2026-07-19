@@ -19,6 +19,11 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
             .HasForeignKey(il => il.InvoiceId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(il => il.VatRate)
+            .WithMany()
+            .HasForeignKey(il => il.VatRateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasQueryFilter(il => !il.Invoice.IsDeleted);
     }
 }

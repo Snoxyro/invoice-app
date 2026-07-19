@@ -5,7 +5,9 @@ public class InvoiceListItemResponse
     public int InvoiceId { get; set; }
     public string InvoiceNumber { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
-    public decimal TotalAmount { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal VatTotal { get; set; }
+    public decimal GrandTotal { get; set; }
     public int CustomerId { get; set; }
     public string CustomerTitle { get; set; } = string.Empty;
     public DateTime CreatedDate { get; set; }

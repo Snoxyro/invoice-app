@@ -13,15 +13,18 @@ public class InvoiceService : IInvoiceService
 {
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Customer> _customerRepository;
+    private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IPermissionService _permissionService;
 
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
         IRepository<Customer> customerRepository,
+        IRepository<VatRate> vatRateRepository,
         IPermissionService permissionService)
     {
         _invoiceRepository = invoiceRepository;
         _customerRepository = customerRepository;
+        _vatRateRepository = vatRateRepository;
         _permissionService = permissionService;
     }
 
@@ -47,6 +50,8 @@ public class InvoiceService : IInvoiceService
             throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
         }
 
+        var vatRates = await GetAllowedVatRatesAsync(request.Lines, context);
+
         var invoice = new Invoice
         {
             CustomerId = request.CustomerId,
@@ -59,18 +64,19 @@ public class InvoiceService : IInvoiceService
                 ItemName = l.ItemName,
                 Quantity = l.Quantity,
                 Price = l.Price,
+                VatRateId = l.VatRateId,
                 UserId = currentUserId
             }).ToList()
         };
 
-        invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
+        ApplyTotals(invoice, vatRates);
 
-        ValidateInvoiceAmountWithinLimit(invoice.TotalAmount, context);
+        ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
 
         await _invoiceRepository.AddAsync(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
-        return MapToResponse(invoice, customer.Title);
+        return MapToResponse(invoice, customer.Title, vatRates);
     }
 
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
@@ -109,6 +115,8 @@ public class InvoiceService : IInvoiceService
             throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
         }
 
+        var vatRates = await GetAllowedVatRatesAsync(request.Lines, context);
+
         invoice.CustomerId = request.CustomerId;
         invoice.InvoiceNumber = request.InvoiceNumber;
         invoice.InvoiceDate = request.InvoiceDate;
@@ -122,18 +130,19 @@ public class InvoiceService : IInvoiceService
                 ItemName = line.ItemName,
                 Quantity = line.Quantity,
                 Price = line.Price,
+                VatRateId = line.VatRateId,
                 UserId = currentUserId
             });
         }
 
-        invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
+        ApplyTotals(invoice, vatRates);
 
-        ValidateInvoiceAmountWithinLimit(invoice.TotalAmount, context);
+        ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
 
         _invoiceRepository.Update(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
-        return MapToResponse(invoice, customer.Title);
+        return MapToResponse(invoice, customer.Title, vatRates);
     }
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
@@ -175,7 +184,12 @@ public class InvoiceService : IInvoiceService
                 new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
         }
 
-        return MapToResponse(invoice, invoice.Customer.Title);
+        var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
+        var vatRates = await _vatRateRepository.Query()
+            .Where(v => vatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+
+        return MapToResponse(invoice, invoice.Customer.Title, vatRates);
     }
 
     public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
@@ -229,7 +243,9 @@ public class InvoiceService : IInvoiceService
                 InvoiceId = i.InvoiceId,
                 InvoiceNumber = i.InvoiceNumber,
                 InvoiceDate = i.InvoiceDate,
-                TotalAmount = i.TotalAmount,
+                Subtotal = i.Subtotal,
+                VatTotal = i.VatTotal,
+                GrandTotal = i.GrandTotal,
                 CustomerId = i.CustomerId,
                 CustomerTitle = i.Customer.Title,
                 CreatedDate = i.CreatedDate,
@@ -251,16 +267,54 @@ public class InvoiceService : IInvoiceService
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
     }
 
-    private static void ValidateInvoiceAmountWithinLimit(decimal totalAmount, UserPermissionContext context)
+    private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
+        List<InvoiceLineRequest> lines, UserPermissionContext context)
     {
-        if (context.MinInvoiceAmount is not null && totalAmount < context.MinInvoiceAmount)
+        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
+
+        var notAllowed = requestedVatRateIds.Where(id => !context.VatRateIds.Contains(id)).ToList();
+
+        if (notAllowed.Count > 0)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.VatRateNotAllowedForProfile,
+                new Dictionary<string, string> { ["vatRateIds"] = string.Join(",", notAllowed) });
+        }
+
+        return await _vatRateRepository.Query()
+            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+    }
+
+    private static void ApplyTotals(Invoice invoice, Dictionary<int, decimal> vatRates)
+    {
+        decimal subtotal = 0;
+        decimal vatTotal = 0;
+
+        foreach (var line in invoice.InvoiceLines)
+        {
+            var lineSubtotal = Math.Round(line.Quantity * line.Price, 2);
+            var lineVat = Math.Round(lineSubtotal * vatRates[line.VatRateId] / 100, 2);
+
+            subtotal += lineSubtotal;
+            vatTotal += lineVat;
+        }
+
+        invoice.Subtotal = subtotal;
+        invoice.VatTotal = vatTotal;
+        invoice.GrandTotal = subtotal + vatTotal;
+    }
+
+    private static void ValidateInvoiceAmountWithinLimit(decimal grandTotal, UserPermissionContext context)
+    {
+        if (context.MinInvoiceAmount is not null && grandTotal < context.MinInvoiceAmount)
         {
             throw new BusinessRuleException(
                 ErrorCodes.InvoiceAmountBelowMinimum,
                 new Dictionary<string, string> { ["minInvoiceAmount"] = context.MinInvoiceAmount.Value.ToString() });
         }
 
-        if (context.MaxInvoiceAmount is not null && totalAmount > context.MaxInvoiceAmount)
+        if (context.MaxInvoiceAmount is not null && grandTotal > context.MaxInvoiceAmount)
         {
             throw new BusinessRuleException(
                 ErrorCodes.InvoiceAmountAboveMaximum,
@@ -268,14 +322,16 @@ public class InvoiceService : IInvoiceService
         }
     }
 
-    private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle)
+    private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle, Dictionary<int, decimal> vatRates)
     {
         return new InvoiceResponse
         {
             InvoiceId = invoice.InvoiceId,
             InvoiceNumber = invoice.InvoiceNumber,
             InvoiceDate = invoice.InvoiceDate,
-            TotalAmount = invoice.TotalAmount,
+            Subtotal = invoice.Subtotal,
+            VatTotal = invoice.VatTotal,
+            GrandTotal = invoice.GrandTotal,
             CustomerId = invoice.CustomerId,
             CustomerTitle = customerTitle,
             CreatedDate = invoice.CreatedDate,
@@ -285,7 +341,9 @@ public class InvoiceService : IInvoiceService
                 InvoiceLineId = l.InvoiceLineId,
                 ItemName = l.ItemName,
                 Quantity = l.Quantity,
-                Price = l.Price
+                Price = l.Price,
+                VatRateId = l.VatRateId,
+                VatRatePercentage = vatRates[l.VatRateId]
             }).ToList()
         };
     }
