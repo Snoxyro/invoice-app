@@ -4,6 +4,7 @@ using InvoiceApp.Common.Exceptions;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
+using InvoiceApp.Service.Permissions;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceApp.Service.Invoices;
@@ -12,21 +13,22 @@ public class InvoiceService : IInvoiceService
 {
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Customer> _customerRepository;
-    private readonly IRepository<User> _userRepository;
+    private readonly IPermissionService _permissionService;
 
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
         IRepository<Customer> customerRepository,
-        IRepository<User> userRepository)
+        IPermissionService permissionService)
     {
         _invoiceRepository = invoiceRepository;
         _customerRepository = customerRepository;
-        _userRepository = userRepository;
+        _permissionService = permissionService;
     }
 
     public async Task<InvoiceResponse> CreateAsync(int currentUserId, InvoiceCreateRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoiceNumberExists = await _invoiceRepository.Query()
             .AnyAsync(i => i.FirmId == currentFirmId && i.InvoiceNumber == request.InvoiceNumber);
@@ -63,6 +65,8 @@ public class InvoiceService : IInvoiceService
 
         invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
 
+        ValidateInvoiceAmountWithinLimit(invoice.TotalAmount, context);
+
         await _invoiceRepository.AddAsync(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
@@ -71,7 +75,8 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await _invoiceRepository.Query()
             .Include(i => i.InvoiceLines)
@@ -123,6 +128,8 @@ public class InvoiceService : IInvoiceService
 
         invoice.TotalAmount = invoice.InvoiceLines.Sum(l => l.Quantity * l.Price);
 
+        ValidateInvoiceAmountWithinLimit(invoice.TotalAmount, context);
+
         _invoiceRepository.Update(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
@@ -131,7 +138,8 @@ public class InvoiceService : IInvoiceService
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await _invoiceRepository.Query()
             .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
@@ -152,7 +160,8 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await _invoiceRepository.Query()
             .Include(i => i.InvoiceLines)
@@ -171,7 +180,8 @@ public class InvoiceService : IInvoiceService
 
     public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var query = _invoiceRepository.Query()
             .Include(i => i.Customer)
@@ -231,16 +241,6 @@ public class InvoiceService : IInvoiceService
         };
     }
 
-    private async Task<int> GetCurrentFirmIdAsync(int currentUserId)
-    {
-        var user = await _userRepository.GetByIdAsync(currentUserId)
-            ?? throw new NotFoundException(
-                ErrorCodes.UserNotFound,
-                new Dictionary<string, string> { ["userId"] = currentUserId.ToString() });
-
-        return user.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-    }
-
     private async Task<Customer> GetOwnedCustomerAsync(int currentFirmId, int customerId)
     {
         var customer = await _customerRepository.Query()
@@ -249,6 +249,23 @@ public class InvoiceService : IInvoiceService
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
+    }
+
+    private static void ValidateInvoiceAmountWithinLimit(decimal totalAmount, UserPermissionContext context)
+    {
+        if (context.MinInvoiceAmount is not null && totalAmount < context.MinInvoiceAmount)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.InvoiceAmountBelowMinimum,
+                new Dictionary<string, string> { ["minInvoiceAmount"] = context.MinInvoiceAmount.Value.ToString() });
+        }
+
+        if (context.MaxInvoiceAmount is not null && totalAmount > context.MaxInvoiceAmount)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.InvoiceAmountAboveMaximum,
+                new Dictionary<string, string> { ["maxInvoiceAmount"] = context.MaxInvoiceAmount.Value.ToString() });
+        }
     }
 
     private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle)

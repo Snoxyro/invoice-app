@@ -4,6 +4,7 @@ using InvoiceApp.Common.Exceptions;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
+using InvoiceApp.Service.Permissions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
@@ -13,16 +14,16 @@ public class CustomerService : ICustomerService
 {
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<Invoice> _invoiceRepository;
-    private readonly IRepository<User> _userRepository;
+    private readonly IPermissionService _permissionService;
 
     public CustomerService(
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
-        IRepository<User> userRepository)
+        IPermissionService permissionService)
     {
         _customerRepository = customerRepository;
         _invoiceRepository = invoiceRepository;
-        _userRepository = userRepository;
+        _permissionService = permissionService;
     }
 
     public async Task<CustomerResponse> CreateAsync(int currentUserId, CustomerCreateRequest request)
@@ -154,12 +155,8 @@ public class CustomerService : ICustomerService
 
     private async Task<int> GetCurrentFirmIdAsync(int currentUserId)
     {
-        var user = await _userRepository.GetByIdAsync(currentUserId)
-            ?? throw new NotFoundException(
-                ErrorCodes.UserNotFound,
-                new Dictionary<string, string> { ["userId"] = currentUserId.ToString() });
-
-        return user.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        return context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
     }
 
     private async Task<Customer> GetOwnedCustomerAsync(int currentFirmId, int customerId)

@@ -1,15 +1,20 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using InvoiceApp.Api.Authorization;
 using InvoiceApp.Api.Middleware;
 using InvoiceApp.Common.Entities;
 using InvoiceApp.Common.Security;
 using InvoiceApp.Repository;
 using InvoiceApp.Service.Auth;
 using InvoiceApp.Service.Customers;
+using InvoiceApp.Service.Firms;
 using InvoiceApp.Service.Invoices;
+using InvoiceApp.Service.Permissions;
+using InvoiceApp.Service.Profiles;
 using InvoiceApp.Service.Security;
 using InvoiceApp.Service.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -53,6 +58,9 @@ builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IFirmService, FirmService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
@@ -80,6 +88,8 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 builder.Services.AddCors(options =>
 {

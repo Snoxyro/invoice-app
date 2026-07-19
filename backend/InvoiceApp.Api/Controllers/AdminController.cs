@@ -1,7 +1,6 @@
-using InvoiceApp.Api.Extensions;
-using InvoiceApp.Common.Dtos.Users;
+using InvoiceApp.Common.Dtos.Firms;
 using InvoiceApp.Common.Paging;
-using InvoiceApp.Service.Users;
+using InvoiceApp.Service.Firms;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,45 +11,45 @@ namespace InvoiceApp.Api.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminController : ControllerBase
 {
-    private readonly IUserService _userService;
+    private readonly IFirmService _firmService;
 
-    public AdminController(IUserService userService)
+    public AdminController(IFirmService firmService)
     {
-        _userService = userService;
+        _firmService = firmService;
     }
 
-    [HttpGet("users")]
-    public async Task<ActionResult<PagedResult<UserResponse>>> GetUsers([FromQuery] PagedRequest request)
+    [HttpGet("firms")]
+    public async Task<ActionResult<PagedResult<FirmResponse>>> GetFirms([FromQuery] PagedRequest request)
     {
-        var result = await _userService.GetPagedAsync(request);
+        var result = await _firmService.GetPagedAsync(request);
         return Ok(result);
     }
 
-    [HttpGet("users/{id:int}")]
-    public async Task<ActionResult<UserResponse>> GetUserById(int id)
+    [HttpGet("firms/{id:int}")]
+    public async Task<ActionResult<FirmResponse>> GetFirmById(int id)
     {
-        var result = await _userService.GetByIdAsync(id);
+        var result = await _firmService.GetByIdAsync(id);
         return Ok(result);
     }
 
-    [HttpPost("users")]
-    public async Task<ActionResult<UserResponse>> CreateUser(UserCreateRequest request)
+    [HttpPost("firms")]
+    public async Task<ActionResult<FirmResponse>> CreateFirm(FirmCreateRequest request)
     {
-        var result = await _userService.CreateAsync(request);
-        return CreatedAtAction(nameof(GetUserById), new { id = result.UserId }, result);
+        var result = await _firmService.CreateAsync(request);
+        return CreatedAtAction(nameof(GetFirmById), new { id = result.FirmId }, result);
     }
 
-    [HttpPut("users/{id:int}")]
-    public async Task<ActionResult<UserResponse>> UpdateUser(int id, UserUpdateRequest request)
+    [HttpPut("firms/{id:int}")]
+    public async Task<ActionResult<FirmResponse>> UpdateFirm(int id, FirmUpdateRequest request)
     {
-        var result = await _userService.UpdateAsync(id, request);
+        var result = await _firmService.UpdateAsync(id, request);
         return Ok(result);
     }
 
-    [HttpDelete("users/{id:int}")]
-    public async Task<IActionResult> DeleteUser(int id)
+    [HttpDelete("firms/{id:int}")]
+    public async Task<IActionResult> DeleteFirm(int id)
     {
-        await _userService.DeleteAsync(id, User.GetUserId());
+        await _firmService.DeleteAsync(id);
         return NoContent();
     }
 }

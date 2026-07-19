@@ -1,5 +1,7 @@
+using InvoiceApp.Api.Authorization;
 using InvoiceApp.Api.Extensions;
 using InvoiceApp.Common.Dtos.Customers;
+using InvoiceApp.Common.Entities;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Service.Customers;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +22,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(PermissionResource.Customers, PermissionAction.Read)]
     public async Task<ActionResult<PagedResult<CustomerResponse>>> GetPaged([FromQuery] PagedRequest request)
     {
         var result = await _customerService.GetPagedAsync(User.GetUserId(), request);
@@ -27,6 +30,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [RequirePermission(PermissionResource.Customers, PermissionAction.Read)]
     public async Task<ActionResult<CustomerResponse>> GetById(int id)
     {
         var result = await _customerService.GetByIdAsync(User.GetUserId(), id);
@@ -34,6 +38,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
+    [RequirePermission(PermissionResource.Customers, PermissionAction.Create)]
     public async Task<ActionResult<CustomerResponse>> Create(CustomerCreateRequest request)
     {
         var result = await _customerService.CreateAsync(User.GetUserId(), request);
@@ -41,6 +46,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [RequirePermission(PermissionResource.Customers, PermissionAction.Update)]
     public async Task<ActionResult<CustomerResponse>> Update(int id, CustomerUpdateRequest request)
     {
         var result = await _customerService.UpdateAsync(User.GetUserId(), id, request);
@@ -48,6 +54,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [RequirePermission(PermissionResource.Customers, PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
         await _customerService.DeleteAsync(User.GetUserId(), id);
