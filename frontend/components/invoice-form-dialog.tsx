@@ -14,9 +14,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CustomerPickerDialog } from "@/components/customer-picker-dialog";
 import { apiFetch } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/apiErrorMessage";
+import { usePermissions } from "@/contexts/PermissionContext";
 
 interface CustomerResponse {
   customerId: number;
@@ -33,13 +41,20 @@ interface InvoiceLineResponse {
   itemName: string;
   quantity: number;
   price: number;
+  vatRateId: number;
+  vatRatePercentage: number;
+  subtotal: number;
+  vatAmount: number;
+  lineTotal: number;
 }
 
 interface InvoiceResponse {
   invoiceId: number;
   invoiceNumber: string;
   invoiceDate: string;
-  totalAmount: number;
+  subtotal: number;
+  vatTotal: number;
+  grandTotal: number;
   customerId: number;
   customerTitle: string;
   createdDate: string;
@@ -52,6 +67,8 @@ interface LineItemState {
   itemName: string;
   quantity: string;
   price: string;
+  vatRateId: number | null;
+  vatRatePercentage: number;
 }
 
 interface InvoiceFormDialogProps {
@@ -60,6 +77,13 @@ interface InvoiceFormDialogProps {
   invoice: InvoiceResponse | null;
   lockedCustomer?: CustomerResponse | null;
   onSuccess: () => void;
+}
+
+function formatAmount(value: number): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function InvoiceFormDialog({
@@ -72,6 +96,7 @@ export function InvoiceFormDialog({
   const t = useTranslations("invoices");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
+  const { vatRates, minInvoiceAmount, maxInvoiceAmount } = usePermissions();
 
   const isEditMode = invoice !== null;
   const keyCounter = useRef(0);
@@ -89,6 +114,9 @@ export function InvoiceFormDialog({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const defaultVatRateId = vatRates[0]?.vatRateId ?? null;
+  const defaultVatRatePercentage = vatRates[0]?.rate ?? 0;
 
   useEffect(() => {
     if (!open) {
@@ -108,6 +136,8 @@ export function InvoiceFormDialog({
           itemName: line.itemName,
           quantity: String(line.quantity),
           price: String(line.price),
+          vatRateId: line.vatRateId,
+          vatRatePercentage: line.vatRatePercentage,
         }))
       );
       return;
@@ -115,7 +145,16 @@ export function InvoiceFormDialog({
 
     setInvoiceNumber("");
     setInvoiceDate("");
-    setLines([{ key: generateKey(), itemName: "", quantity: "1", price: "0" }]);
+    setLines([
+      {
+        key: generateKey(),
+        itemName: "",
+        quantity: "1",
+        price: "0",
+        vatRateId: defaultVatRateId,
+        vatRatePercentage: defaultVatRatePercentage,
+      },
+    ]);
 
     if (lockedCustomer) {
       setCustomerId(lockedCustomer.customerId);
@@ -127,7 +166,17 @@ export function InvoiceFormDialog({
   }, [open, invoice, lockedCustomer]);
 
   function addLine() {
-    setLines((prev) => [...prev, { key: generateKey(), itemName: "", quantity: "1", price: "0" }]);
+    setLines((prev) => [
+      ...prev,
+      {
+        key: generateKey(),
+        itemName: "",
+        quantity: "1",
+        price: "0",
+        vatRateId: defaultVatRateId,
+        vatRatePercentage: defaultVatRatePercentage,
+      },
+    ]);
   }
 
   function removeLine(key: string) {
@@ -135,8 +184,16 @@ export function InvoiceFormDialog({
   }
 
   function updateLine(key: string, field: "itemName" | "quantity" | "price", value: string) {
+    setLines((prev) => prev.map((line) => (line.key === key ? { ...line, [field]: value } : line)));
+  }
+
+  function updateLineVatRate(key: string, vatRateId: number) {
+    const rate = vatRates.find((v) => v.vatRateId === vatRateId)?.rate ?? 0;
+
     setLines((prev) =>
-      prev.map((line) => (line.key === key ? { ...line, [field]: value } : line))
+      prev.map((line) =>
+        line.key === key ? { ...line, vatRateId, vatRatePercentage: rate } : line
+      )
     );
   }
 
@@ -145,10 +202,39 @@ export function InvoiceFormDialog({
     setCustomerLabel(`${customer.title} — ${customer.taxNumber}`);
   }
 
-  const total = lines.reduce(
-    (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.price) || 0),
-    0
+  function roundToCents(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
+
+  function lineTotals(line: LineItemState) {
+    const quantity = Number(line.quantity) || 0;
+    const price = Number(line.price) || 0;
+    const subtotal = roundToCents(quantity * price);
+    const vatAmount = roundToCents(subtotal * (line.vatRatePercentage / 100));
+
+    return { subtotal, vatAmount, lineTotal: subtotal + vatAmount };
+  }
+
+  const totals = lines.reduce(
+    (acc, line) => {
+      const { subtotal, vatAmount, lineTotal } = lineTotals(line);
+
+      return {
+        subtotal: acc.subtotal + subtotal,
+        vatTotal: acc.vatTotal + vatAmount,
+        grandTotal: acc.grandTotal + lineTotal,
+      };
+    },
+    { subtotal: 0, vatTotal: 0, grandTotal: 0 }
   );
+
+  let limitHint: string | null = null;
+
+  if (minInvoiceAmount !== null && totals.grandTotal < minInvoiceAmount) {
+    limitHint = t("belowMinimumHint", { min: minInvoiceAmount });
+  } else if (maxInvoiceAmount !== null && totals.grandTotal > maxInvoiceAmount) {
+    limitHint = t("aboveMaximumHint", { max: maxInvoiceAmount });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -158,7 +244,7 @@ export function InvoiceFormDialog({
       return;
     }
 
-    if (lines.length === 0 || lines.some((line) => line.itemName.trim() === "")) {
+    if (lines.length === 0 || lines.some((line) => line.itemName.trim() === "" || line.vatRateId === null)) {
       setError(t("linesRequiredError"));
       return;
     }
@@ -174,6 +260,7 @@ export function InvoiceFormDialog({
         itemName: line.itemName,
         quantity: Number(line.quantity),
         price: Number(line.price),
+        vatRateId: line.vatRateId,
       })),
     };
 
@@ -208,7 +295,7 @@ export function InvoiceFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{isEditMode ? t("editTitle") : t("createTitle")}</DialogTitle>
             <DialogDescription>
@@ -216,7 +303,10 @@ export function InvoiceFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4">
+          <form
+            onSubmit={handleSubmit}
+            className="flex max-h-[75vh] flex-col gap-4 overflow-y-auto px-4"
+          >
             <div className="flex flex-col gap-2">
               <Label>{t("customerLabel")}</Label>
               {lockedCustomer ? (
@@ -260,64 +350,96 @@ export function InvoiceFormDialog({
 
               <div className="flex gap-2 text-xs text-muted-foreground">
                 <span className="flex-1">{t("lineItemName")}</span>
-                <span className="w-24">{t("lineQuantity")}</span>
-                <span className="w-28">{t("linePrice")}</span>
+                <span className="w-20">{t("lineQuantity")}</span>
+                <span className="w-24">{t("linePrice")}</span>
+                <span className="w-28">{t("lineVatRate")}</span>
+                <span className="w-24 text-right">{t("lineTotal")}</span>
                 <span className="w-8" />
               </div>
 
-              {lines.map((line) => (
-                <div key={line.key} className="flex items-center gap-2">
-                  <Input
-                    className="flex-1"
-                    value={line.itemName}
-                    onChange={(e) => updateLine(line.key, "itemName", e.target.value)}
-                  />
-                  <Input
-                    className="w-24"
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={line.quantity}
-                    onChange={(e) => updateLine(line.key, "quantity", e.target.value)}
-                  />
-                  <Input
-                    className="w-28"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={line.price}
-                    onChange={(e) => updateLine(line.key, "price", e.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => removeLine(line.key)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              ))}
+              {lines.map((line) => {
+                const { lineTotal } = lineTotals(line);
+                const hasCurrentRateInList = vatRates.some((v) => v.vatRateId === line.vatRateId);
+                const selectOptions =
+                  line.vatRateId !== null && !hasCurrentRateInList
+                    ? [...vatRates, { vatRateId: line.vatRateId, rate: line.vatRatePercentage }]
+                    : vatRates;
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addLine}
-                className="self-start"
-              >
+                return (
+                  <div key={line.key} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={line.itemName}
+                      onChange={(e) => updateLine(line.key, "itemName", e.target.value)}
+                    />
+                    <Input
+                      className="w-20"
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={line.quantity}
+                      onChange={(e) => updateLine(line.key, "quantity", e.target.value)}
+                    />
+                    <Input
+                      className="w-24"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.price}
+                      onChange={(e) => updateLine(line.key, "price", e.target.value)}
+                    />
+                    <Select
+                      value={line.vatRateId !== null ? String(line.vatRateId) : null}
+                      onValueChange={(value) => value && updateLineVatRate(line.key, Number(value))}
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue>
+                          {line.vatRateId !== null ? `%${line.vatRatePercentage}` : ""}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent alignItemWithTrigger={false}>
+                        {selectOptions.map((v) => (
+                          <SelectItem key={v.vatRateId} value={String(v.vatRateId)}>
+                            %{v.rate}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="w-24 text-right text-sm">{formatAmount(lineTotal)}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => removeLine(line.key)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                );
+              })}
+
+              <Button type="button" variant="outline" size="sm" onClick={addLine} className="self-start">
                 <Plus />
                 {t("addLineButton")}
               </Button>
             </div>
 
-            <div className="flex justify-end text-sm font-medium">
-              {t("lineTotal")}:{" "}
-              {total.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+            <div className="flex flex-col items-end gap-1 text-sm">
+              <div className="flex w-48 justify-between text-muted-foreground">
+                <span>{t("subtotalLabel")}</span>
+                <span>{formatAmount(totals.subtotal)}</span>
+              </div>
+              <div className="flex w-48 justify-between text-muted-foreground">
+                <span>{t("vatTotalLabel")}</span>
+                <span>{formatAmount(totals.vatTotal)}</span>
+              </div>
+              <div className="flex w-48 justify-between font-semibold">
+                <span>{t("grandTotalLabel")}</span>
+                <span>{formatAmount(totals.grandTotal)}</span>
+              </div>
             </div>
+
+            {limitHint && <p className="text-sm text-amber-600">{limitHint}</p>}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -338,11 +460,7 @@ export function InvoiceFormDialog({
         </DialogContent>
       </Dialog>
 
-      <CustomerPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        onSelect={handleCustomerSelect}
-      />
+      <CustomerPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleCustomerSelect} />
     </>
   );
 }

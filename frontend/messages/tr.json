@@ -116,7 +116,13 @@
     "lineItemName": "Ürün/Hizmet",
     "lineQuantity": "Miktar",
     "linePrice": "Birim Fiyat",
-    "lineTotal": "Tutar"
+    "lineVatRate": "KDV Oranı",
+    "lineTotal": "Tutar",
+    "subtotalLabel": "Ara Toplam",
+    "vatTotalLabel": "KDV",
+    "grandTotalLabel": "Genel Toplam",
+    "belowMinimumHint": "Tutar, izin verilen minimum {min} değerinin altında",
+    "aboveMaximumHint": "Tutar, izin verilen maksimum {max} değerinin üzerinde"
   },
   "profiles": {
     "title": "Profiller",

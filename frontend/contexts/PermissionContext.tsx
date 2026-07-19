@@ -8,13 +8,14 @@ import {
   type MyPermissionsResponse,
   type PermissionActionType,
   type PermissionResource,
+  type VatRateOption,
 } from "@/lib/permissions";
 
 interface PermissionContextValue {
   isLoading: boolean;
   profileId: number | null;
   isSystemProfile: boolean;
-  vatRateIds: number[];
+  vatRates: VatRateOption[];
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
   hasPermission: (resource: PermissionResource, action: PermissionActionType) => boolean;
@@ -58,7 +59,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         isLoading,
         profileId: data?.profileId ?? null,
         isSystemProfile: data?.isSystemProfile ?? false,
-        vatRateIds: data?.vatRateIds ?? [],
+        vatRates: data?.vatRates ?? [],
         minInvoiceAmount: data?.minInvoiceAmount ?? null,
         maxInvoiceAmount: data?.maxInvoiceAmount ?? null,
         hasPermission,

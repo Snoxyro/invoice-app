@@ -58,7 +58,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
   const tErrors = useTranslations("errors");
   const {
     hasPermission,
-    vatRateIds: ownVatRateIds,
+    vatRates: ownVatRates,
     minInvoiceAmount: ownMin,
     maxInvoiceAmount: ownMax,
   } = usePermissions();
@@ -329,7 +329,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
               ) : (
                 <div className="flex flex-wrap gap-4">
                   {vatRateCatalog.map((vatRate) => {
-                    const isCallerAllowed = ownVatRateIds.includes(vatRate.vatRateId);
+                    const isCallerAllowed = ownVatRates.some((v) => v.vatRateId === vatRate.vatRateId);
                     const isFieldEnabled = isCallerAllowed && canEditInvoicesInThisProfile;
 
                     return (

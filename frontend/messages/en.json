@@ -116,7 +116,13 @@
     "lineItemName": "Item",
     "lineQuantity": "Quantity",
     "linePrice": "Unit Price",
-    "lineTotal": "Total"
+    "lineVatRate": "VAT Rate",
+    "lineTotal": "Total",
+    "subtotalLabel": "Subtotal",
+    "vatTotalLabel": "VAT",
+    "grandTotalLabel": "Grand Total",
+    "belowMinimumHint": "Amount is below the allowed minimum of {min}",
+    "aboveMaximumHint": "Amount is above the allowed maximum of {max}"
   },
   "profiles": {
     "title": "Profiles",
