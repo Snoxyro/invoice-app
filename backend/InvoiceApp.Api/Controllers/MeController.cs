@@ -27,7 +27,7 @@ public class MeController : ControllerBase
         {
             ProfileId = context.ProfileId,
             IsSystemProfile = context.IsSystemProfile,
-            PermissionIds = context.PermissionIds.ToList(),
+            Permissions = context.Permissions.Select(p => $"{p.Resource}:{p.Action}").ToList(),
             VatRateIds = context.VatRateIds.ToList(),
             MinInvoiceAmount = context.MinInvoiceAmount,
             MaxInvoiceAmount = context.MaxInvoiceAmount

@@ -18,7 +18,10 @@ function base64UrlDecode(input: string): string {
     base64 += "=";
   }
 
-  return atob(base64);
+  const binaryString = atob(base64);
+  const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
+
+  return new TextDecoder("utf-8").decode(bytes);
 }
 
 export function decodeJwt(token: string): DecodedToken | null {

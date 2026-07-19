@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Building2, LayoutDashboard, LogOut, Receipt, Settings, Users } from "lucide-react";
+import { Building, Building2, LayoutDashboard, LogOut, Receipt, Settings, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,17 +18,35 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/contexts/PermissionContext";
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof Building2;
+}
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
+  const { hasPermission } = usePermissions();
   const pathname = usePathname();
   const t = useTranslations("nav");
 
-  const adminItems = [{ href: "/admin/users", label: t("users"), icon: Users }];
-  const firmItems = [
-    { href: "/customers", label: t("customers"), icon: Building2 },
-    { href: "/invoices", label: t("invoices"), icon: Receipt },
-  ];
+  const adminItems: NavItem[] = [{ href: "/admin/firms", label: t("firms"), icon: Building }];
+
+  const firmItems: NavItem[] = [
+    hasPermission("Users", "Read") ? { href: "/users", label: t("users"), icon: Users } : null,
+    hasPermission("Customers", "Read")
+      ? { href: "/customers", label: t("customers"), icon: Building2 }
+      : null,
+    hasPermission("Invoices", "Read")
+      ? { href: "/invoices", label: t("invoices"), icon: Receipt }
+      : null,
+    hasPermission("Profiles", "Read")
+      ? { href: "/profiles", label: t("profiles"), icon: ShieldCheck }
+      : null,
+  ].filter((item): item is NavItem => item !== null);
+
   const items = user?.role === "Admin" ? adminItems : firmItems;
 
   return (

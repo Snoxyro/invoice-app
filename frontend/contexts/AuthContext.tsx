@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     clearToken();
     setUser(null);
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   return (

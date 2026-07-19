@@ -18,6 +18,8 @@ public class FirmService : IFirmService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Permission> _permissionRepository;
     private readonly IRepository<VatRate> _vatRateRepository;
+    private readonly IRepository<Customer> _customerRepository;
+    private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IPasswordHasher _passwordHasher;
 
     public FirmService(
@@ -26,6 +28,8 @@ public class FirmService : IFirmService
         IRepository<User> userRepository,
         IRepository<Permission> permissionRepository,
         IRepository<VatRate> vatRateRepository,
+        IRepository<Customer> customerRepository,
+        IRepository<Invoice> invoiceRepository,
         IPasswordHasher passwordHasher)
     {
         _firmRepository = firmRepository;
@@ -33,6 +37,8 @@ public class FirmService : IFirmService
         _userRepository = userRepository;
         _permissionRepository = permissionRepository;
         _vatRateRepository = vatRateRepository;
+        _customerRepository = customerRepository;
+        _invoiceRepository = invoiceRepository;
         _passwordHasher = passwordHasher;
     }
 
@@ -128,11 +134,26 @@ public class FirmService : IFirmService
                 ErrorCodes.FirmNotFound,
                 new Dictionary<string, string> { ["firmId"] = firmId.ToString() });
 
-        var hasUsers = await _userRepository.Query().AnyAsync(u => u.FirmId == firmId);
+        var hasCustomers = await _customerRepository.Query().AnyAsync(c => c.FirmId == firmId);
+        var hasInvoices = await _invoiceRepository.Query().AnyAsync(i => i.FirmId == firmId);
 
-        if (hasUsers)
+        if (hasCustomers || hasInvoices)
         {
             throw new BusinessRuleException(ErrorCodes.FirmHasRecordsCannotDelete);
+        }
+
+        var firmUsers = await _userRepository.Query().Where(u => u.FirmId == firmId).ToListAsync();
+
+        foreach (var user in firmUsers)
+        {
+            _userRepository.Remove(user);
+        }
+
+        var firmProfiles = await _profileRepository.Query().Where(p => p.FirmId == firmId).ToListAsync();
+
+        foreach (var profile in firmProfiles)
+        {
+            _profileRepository.Remove(profile);
         }
 
         _firmRepository.Remove(firm);

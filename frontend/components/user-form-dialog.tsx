@@ -22,50 +22,86 @@ import {
 } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/apiErrorMessage";
-
-type UserRole = "Admin" | "Firm";
+import type { PagedResult } from "@/lib/paging";
 
 interface UserResponse {
   userId: number;
   userName: string;
-  role: UserRole;
+  profileId: number | null;
+  profileName: string | null;
   createdDate: string;
   updatedDate: string | null;
+}
+
+interface ProfileOption {
+  profileId: number;
+  name: string;
 }
 
 interface UserFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserResponse | null;
-  onSuccess: () => void;
+  onSuccess: (user: UserResponse) => void;
 }
 
 export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserFormDialogProps) {
-  const t = useTranslations("adminUsers");
+  const t = useTranslations("users");
   const tCommon = useTranslations("common");
-  const tRoles = useTranslations("roles");
   const tErrors = useTranslations("errors");
 
   const isEditMode = user !== null;
 
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("Firm");
+  const [profileId, setProfileId] = useState<number | null>(null);
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [isProfilesLoading, setIsProfilesLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setUserName(user?.userName ?? "");
-      setRole(user?.role ?? "Firm");
+      setProfileId(user?.profileId ?? null);
       setPassword("");
       setError(null);
     }
   }, [open, user]);
 
-  function handleRoleChange(value: string | null) {
-    if (value === "Admin" || value === "Firm") {
-      setRole(value);
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function loadProfiles() {
+      setIsProfilesLoading(true);
+
+      try {
+        const result = await apiFetch<PagedResult<ProfileOption>>("/api/Profiles?pageSize=100");
+
+        if (!isCancelled) {
+          setProfiles(result.items);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsProfilesLoading(false);
+        }
+      }
+    }
+
+    loadProfiles();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open]);
+
+  function handleProfileChange(value: string | null) {
+    if (value) {
+      setProfileId(Number(value));
     }
   }
 
@@ -75,23 +111,25 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
     setError(null);
 
     try {
+      let result: UserResponse;
+
       if (isEditMode) {
-        await apiFetch(`/api/Admin/users/${user.userId}`, {
+        result = await apiFetch<UserResponse>(`/api/Users/${user.userId}`, {
           method: "PUT",
           body: JSON.stringify({
             userName,
-            role,
+            profileId,
             newPassword: password ? password : null,
           }),
         });
       } else {
-        await apiFetch("/api/Admin/users", {
+        result = await apiFetch<UserResponse>("/api/Users", {
           method: "POST",
-          body: JSON.stringify({ userName, password, role }),
+          body: JSON.stringify({ userName, password, profileId }),
         });
       }
 
-      onSuccess();
+      onSuccess(result);
       onOpenChange(false);
     } catch (err) {
       setError(getApiErrorMessage(err, tErrors, tErrors("UNEXPECTED_ERROR")));
@@ -139,22 +177,29 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
               onChange={(e) => setPassword(e.target.value)}
               required={!isEditMode}
             />
-            {isEditMode && (
-              <p className="text-xs text-muted-foreground">{t("newPasswordHint")}</p>
-            )}
+            {isEditMode && <p className="text-xs text-muted-foreground">{t("newPasswordHint")}</p>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="role-select">{t("columnRole")}</Label>
-            <Select value={role} onValueChange={handleRoleChange}>
-              <SelectTrigger id="role-select" className="w-full">
+            <Label htmlFor="profile-select">{t("columnProfile")}</Label>
+            <Select
+              value={profileId !== null ? String(profileId) : null}
+              onValueChange={handleProfileChange}
+              disabled={isProfilesLoading}
+            >
+              <SelectTrigger id="profile-select" className="w-full">
                 <SelectValue>
-                  {(value: string | null) => (value === "Admin" ? tRoles("admin") : tRoles("firm"))}
+                  {(value: string | null) =>
+                    profiles.find((p) => String(p.profileId) === value)?.name ?? ""
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="Admin">{tRoles("admin")}</SelectItem>
-                <SelectItem value="Firm">{tRoles("firm")}</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.profileId} value={String(p.profileId)}>
+                    {p.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -170,7 +215,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             >
               {tCommon("cancel")}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || profileId === null}>
               {isSubmitting ? tCommon("processing") : tCommon("save")}
             </Button>
           </DialogFooter>
