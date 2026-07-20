@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { SortDirection } from "@/lib/paging";
 
 export interface PagedTableColumn<T> {
@@ -48,6 +49,7 @@ interface PagedTableProps<T> {
   getRowKey: (item: T) => string | number;
   renderExpandedRow?: (item: T) => ReactNode;
   emptyMessage?: string;
+  filters?: ReactNode;
 }
 
 export function PagedTable<T>({
@@ -69,6 +71,7 @@ export function PagedTable<T>({
   getRowKey,
   renderExpandedRow,
   emptyMessage,
+  filters,
 }: PagedTableProps<T>) {
   const t = useTranslations("table");
   const columnCount = columns.length + (renderExpandedRow ? 1 : 0);
@@ -76,27 +79,33 @@ export function PagedTable<T>({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder={t("searchPlaceholder")}
-          value={searchInput}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="max-w-xs"
-        />
-        <Select
-          value={String(pageSize)}
-          onValueChange={(value) => onPageSizeChange(Number(value))}
-        >
-          <SelectTrigger className="w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="20">20</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-4">
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t("searchPlaceholder")}
+              value={searchInput}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          {filters}
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => onPageSizeChange(Number(value))}
+          >
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       <div className="rounded-lg border">
         <Table>

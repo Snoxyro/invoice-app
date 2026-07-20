@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { usePagedList } from "@/hooks/usePagedList";
 import { PagedTable, type PagedTableColumn } from "@/components/paged-table";
+import { NameAvatar } from "@/components/name-avatar";
 import { InvoiceLineDetails } from "@/components/invoice-line-details";
 import { InvoiceFormDialog } from "@/components/invoice-form-dialog";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
@@ -110,7 +111,12 @@ export default function InvoicesPage() {
       key: "customerTitle",
       header: t("columnCustomer"),
       sortKey: "customer",
-      render: (i) => i.customerTitle,
+      render: (i) => (
+        <div className="flex items-center gap-2">
+          <NameAvatar name={i.customerTitle} />
+          <span>{i.customerTitle}</span>
+        </div>
+      ),
     },
     {
       key: "invoiceDate",
@@ -162,7 +168,7 @@ export default function InvoicesPage() {
 
   return (
     <PermissionGuard resource="Invoices" action="Read">
-      <div className="mx-auto max-w-6xl p-6">
+      <div>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           {canCreate && (
@@ -171,29 +177,6 @@ export default function InvoicesPage() {
               {t("createButton")}
             </Button>
           )}
-        </div>
-
-        <div className="mb-4 flex items-end gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="startDate">{t("startDateLabel")}</Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-40"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="endDate">{t("endDateLabel")}</Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-40"
-            />
-          </div>
         </div>
 
         <PagedTable
@@ -214,6 +197,30 @@ export default function InvoicesPage() {
           onSort={list.toggleSort}
           getRowKey={(i) => i.invoiceId}
           renderExpandedRow={(i) => <InvoiceLineDetails invoiceId={i.invoiceId} />}
+          filters={
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="startDate">{t("startDateLabel")}</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="endDate">{t("endDateLabel")}</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+            </>
+          }
         />
 
         <InvoiceFormDialog

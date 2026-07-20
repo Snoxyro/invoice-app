@@ -13,6 +13,21 @@
   "home": {
     "greetingPrefix": "Merhaba,"
   },
+  "dashboard": {
+    "loading": "Yükleniyor...",
+    "totalFirms": "Toplam Firma",
+    "newFirmsThisMonth": "Bu Ay Eklenen Firma",
+    "recentFirms": "Son Eklenen Firmalar",
+    "noRecentFirms": "Henüz firma eklenmedi",
+    "totalInvoices": "Toplam Fatura",
+    "totalRevenue": "Toplam Ciro",
+    "totalCustomers": "Toplam Müşteri",
+    "totalUsers": "Toplam Kullanıcı",
+    "totalProfiles": "Toplam Profil",
+    "recentInvoices": "Son Faturalar",
+    "noRecentInvoices": "Henüz fatura oluşturulmadı",
+    "noWidgets": "Görüntüleyebileceğiniz bir özet bulunmuyor"
+  },
   "roles": {
     "admin": "Admin",
     "firm": "Firma"

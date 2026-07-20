@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { usePagedList } from "@/hooks/usePagedList";
 import { PagedTable, type PagedTableColumn } from "@/components/paged-table";
+import { NameAvatar } from "@/components/name-avatar";
 import { formatDateTime } from "@/lib/formatDate";
 import { Button } from "@/components/ui/button";
 import { UserFormDialog } from "@/components/user-form-dialog";
@@ -53,7 +54,12 @@ export default function UsersPage() {
       key: "userName",
       header: t("columnUsername"),
       sortKey: "username",
-      render: (u) => u.userName,
+      render: (u) => (
+        <div className="flex items-center gap-2">
+          <NameAvatar name={u.userName} />
+          <span className="font-medium">{u.userName}</span>
+        </div>
+      ),
     },
     {
       key: "profileName",
@@ -95,7 +101,7 @@ export default function UsersPage() {
 
   return (
     <PermissionGuard resource="Users" action="Read">
-      <div className="mx-auto max-w-4xl p-6">
+      <div>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           {canCreate && (

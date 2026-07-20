@@ -22,11 +22,11 @@ export default async function AppLayout({
     <PermissionProvider>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-w-0">
           <div className="p-4">
             <SidebarTrigger />
           </div>
-          {children}
+          <div className="min-w-0 px-[clamp(0.10rem,8vw,9rem)] pt-4 pb-8">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </PermissionProvider>

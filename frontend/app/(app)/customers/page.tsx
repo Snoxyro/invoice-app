@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { usePagedList } from "@/hooks/usePagedList";
 import { PagedTable, type PagedTableColumn } from "@/components/paged-table";
+import { NameAvatar } from "@/components/name-avatar";
 import { formatDateTime } from "@/lib/formatDate";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/customer-form-dialog";
@@ -64,7 +65,12 @@ export default function CustomersPage() {
       key: "title",
       header: t("columnTitle"),
       sortKey: "title",
-      render: (c) => c.title,
+      render: (c) => (
+        <div className="flex items-center gap-2">
+          <NameAvatar name={c.title} />
+          <span className="font-medium">{c.title}</span>
+        </div>
+      ),
     },
     {
       key: "taxNumber",
@@ -120,7 +126,7 @@ export default function CustomersPage() {
 
   return (
     <PermissionGuard resource="Customers" action="Read">
-      <div className="mx-auto max-w-5xl p-6">
+      <div>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           {canCreate && (

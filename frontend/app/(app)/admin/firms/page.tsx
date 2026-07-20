@@ -67,7 +67,7 @@ export default function AdminFirmsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <Button onClick={openCreateForm}>

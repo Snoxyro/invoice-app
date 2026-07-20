@@ -7,6 +7,7 @@ using InvoiceApp.Common.Security;
 using InvoiceApp.Repository;
 using InvoiceApp.Service.Auth;
 using InvoiceApp.Service.Customers;
+using InvoiceApp.Service.Dashboard;
 using InvoiceApp.Service.Firms;
 using InvoiceApp.Service.Invoices;
 using InvoiceApp.Service.Permissions;
@@ -61,6 +62,7 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IFirmService, FirmService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<ITokenService, JwtTokenService>();

@@ -13,6 +13,21 @@
   "home": {
     "greetingPrefix": "Hello,"
   },
+  "dashboard": {
+    "loading": "Loading...",
+    "totalFirms": "Total Firms",
+    "newFirmsThisMonth": "New Firms This Month",
+    "recentFirms": "Recently Added Firms",
+    "noRecentFirms": "No firms added yet",
+    "totalInvoices": "Total Invoices",
+    "totalRevenue": "Total Revenue",
+    "totalCustomers": "Total Customers",
+    "totalUsers": "Total Users",
+    "totalProfiles": "Total Profiles",
+    "recentInvoices": "Recent Invoices",
+    "noRecentInvoices": "No invoices created yet",
+    "noWidgets": "There's no summary available to display"
+  },
   "roles": {
     "admin": "Admin",
     "firm": "Firm"
