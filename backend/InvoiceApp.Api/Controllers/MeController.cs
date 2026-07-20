@@ -37,6 +37,7 @@ public class MeController : ControllerBase
         return Ok(new MyPermissionsResponse
         {
             ProfileId = context.ProfileId,
+            ProfileName = context.ProfileName,
             IsSystemProfile = context.IsSystemProfile,
             Permissions = context.Permissions.Select(p => $"{p.Resource}:{p.Action}").ToList(),
             VatRates = vatRates,

@@ -50,6 +50,7 @@ public class PermissionService : IPermissionService
 
         var profile = await _profileRepository.GetByIdAsync(user.ProfileId.Value);
         context.IsSystemProfile = profile?.IsSystem ?? false;
+        context.ProfileName = profile?.Name;
 
         return context;
     }

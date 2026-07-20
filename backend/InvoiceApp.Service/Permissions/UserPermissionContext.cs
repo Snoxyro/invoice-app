@@ -5,5 +5,6 @@ public class UserPermissionContext : PermissionDefinition
     public int UserId { get; set; }
     public int? FirmId { get; set; }
     public int? ProfileId { get; set; }
+    public string? ProfileName { get; set; }
     public bool IsSystemProfile { get; set; }
 }

@@ -17,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { NameAvatar } from "@/components/name-avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/contexts/PermissionContext";
 
@@ -26,9 +27,11 @@ interface NavItem {
   icon: typeof Building2;
 }
 
+const menuButtonClassName = "h-10 gap-3 text-base [&_svg]:size-5";
+
 export function AppSidebar() {
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, profileName } = usePermissions();
   const pathname = usePathname();
   const t = useTranslations("nav");
 
@@ -53,8 +56,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1">
-          <Image src="/logo.svg" alt="" width={24} height={24} className="shrink-0 rounded-md" />
-          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">
+          <Image src="/logo.svg" alt="" width={28} height={28} className="shrink-0 rounded-md" />
+          <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">
             Invoice App
           </span>
         </div>
@@ -69,6 +72,7 @@ export function AppSidebar() {
                   render={<Link href="/" />}
                   isActive={pathname === "/"}
                   tooltip={t("home")}
+                  className={menuButtonClassName}
                 >
                   <LayoutDashboard />
                   <span>{t("home")}</span>
@@ -80,6 +84,7 @@ export function AppSidebar() {
                     render={<Link href={item.href} />}
                     isActive={pathname.startsWith(item.href)}
                     tooltip={item.label}
+                    className={menuButtonClassName}
                   >
                     <item.icon />
                     <span>{item.label}</span>
@@ -97,18 +102,32 @@ export function AppSidebar() {
               render={<Link href="/settings" />}
               isActive={pathname === "/settings"}
               tooltip={t("settings")}
+              className={menuButtonClassName}
             >
               <Settings />
               <span>{t("settings")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={logout} tooltip={t("logout")}>
+            <SidebarMenuButton onClick={logout} tooltip={t("logout")} className={menuButtonClassName}>
               <LogOut />
               <span>{t("logout")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {user && (
+          <div className="flex items-center gap-2 border-t border-sidebar-border px-2 pt-3">
+            <NameAvatar name={user.userName} />
+            <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+              <span className="truncate text-sm font-medium text-sidebar-foreground">
+                {user.userName}
+              </span>
+              {profileName && (
+                <span className="truncate text-xs text-sidebar-foreground/60">{profileName}</span>
+              )}
+            </div>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

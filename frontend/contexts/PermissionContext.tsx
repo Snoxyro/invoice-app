@@ -14,6 +14,7 @@ import {
 interface PermissionContextValue {
   isLoading: boolean;
   profileId: number | null;
+  profileName: string | null;
   isSystemProfile: boolean;
   vatRates: VatRateOption[];
   minInvoiceAmount: number | null;
@@ -58,6 +59,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       value={{
         isLoading,
         profileId: data?.profileId ?? null,
+        profileName: data?.profileName ?? null,
         isSystemProfile: data?.isSystemProfile ?? false,
         vatRates: data?.vatRates ?? [],
         minInvoiceAmount: data?.minInvoiceAmount ?? null,

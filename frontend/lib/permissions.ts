@@ -8,6 +8,7 @@ export interface VatRateOption {
 
 export interface MyPermissionsResponse {
   profileId: number | null;
+  profileName: string | null;
   isSystemProfile: boolean;
   permissions: string[];
   vatRates: VatRateOption[];
