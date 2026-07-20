@@ -166,7 +166,16 @@
   "settings": {
     "title": "Settings",
     "languageTitle": "Language",
-    "languageLabel": "Application language"
+    "languageLabel": "Application language",
+    "appearanceTitle": "Appearance",
+    "themeLabel": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "colorThemeLabel": "Color Theme",
+    "colorDefault": "Default",
+    "colorBlue": "Blue",
+    "colorGreen": "Green",
+    "colorPurple": "Purple"
   },
   "errors": {
     "INVALID_CREDENTIALS": "Incorrect username or password",

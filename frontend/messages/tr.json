@@ -166,7 +166,16 @@
   "settings": {
     "title": "Ayarlar",
     "languageTitle": "Dil",
-    "languageLabel": "Uygulama dili"
+    "languageLabel": "Uygulama dili",
+    "appearanceTitle": "Görünüm",
+    "themeLabel": "Tema",
+    "themeLight": "Aydınlık",
+    "themeDark": "Karanlık",
+    "colorThemeLabel": "Renk Teması",
+    "colorDefault": "Varsayılan",
+    "colorBlue": "Mavi",
+    "colorGreen": "Yeşil",
+    "colorPurple": "Mor"
   },
   "errors": {
     "INVALID_CREDENTIALS": "Kullanıcı adı veya şifre hatalı",

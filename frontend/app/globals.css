@@ -117,6 +117,24 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+[data-color-theme="blue"] {
+  --primary: oklch(0.551 0.163 259.234);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.551 0.163 259.234 / 50%);
+}
+
+[data-color-theme="green"] {
+  --primary: oklch(0.548 0.146 148.5);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.548 0.146 148.5 / 50%);
+}
+
+[data-color-theme="purple"] {
+  --primary: oklch(0.521 0.196 303.5);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.521 0.196 303.5 / 50%);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
