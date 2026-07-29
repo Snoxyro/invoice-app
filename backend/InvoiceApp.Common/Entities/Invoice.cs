@@ -12,6 +12,8 @@ public class Invoice : BaseEntity
     public decimal GrandTotal { get; set; }
     public int FirmId { get; set; }
     public Firm Firm { get; set; } = null!;
+    public int? BranchId { get; set; }
+    public Branch? Branch { get; set; }
     public int CreatedByUserId { get; set; }
     public User CreatedByUser { get; set; } = null!;
     public bool IsDeleted { get; set; }

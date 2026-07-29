@@ -7,6 +7,7 @@ public class Profile : BaseEntity
     public Firm Firm { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
     public bool IsSystem { get; set; }
+    public bool CanAccessAllBranches { get; set; }
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
     public ICollection<User> Users { get; set; } = new List<User>();

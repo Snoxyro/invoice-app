@@ -25,6 +25,11 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .HasForeignKey(i => i.FirmId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(i => i.Branch)
+            .WithMany(b => b.Invoices)
+            .HasForeignKey(i => i.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(i => i.CreatedByUser)
             .WithMany(u => u.CreatedInvoices)
             .HasForeignKey(i => i.CreatedByUserId)
@@ -33,6 +38,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasQueryFilter(i => !i.IsDeleted);
 
         builder.HasIndex(i => i.FirmId);
+        builder.HasIndex(i => i.BranchId);
         builder.HasIndex(i => i.InvoiceDate);
     }
 }

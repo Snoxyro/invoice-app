@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<ProfilePermission> ProfilePermissions => Set<ProfilePermission>();
     public DbSet<VatRate> VatRates => Set<VatRate>();
     public DbSet<ProfileVatRate> ProfileVatRates => Set<ProfileVatRate>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<InvoiceSeries> InvoiceSeries => Set<InvoiceSeries>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

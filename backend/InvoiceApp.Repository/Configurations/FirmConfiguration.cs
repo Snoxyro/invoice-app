@@ -13,5 +13,8 @@ public class FirmConfiguration : IEntityTypeConfiguration<Firm>
         builder.Property(f => f.Name)
             .IsRequired()
             .HasMaxLength(200);
+
+        builder.Property(f => f.Vkn)
+            .HasMaxLength(10);
     }
 }

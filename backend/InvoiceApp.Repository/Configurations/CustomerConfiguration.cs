@@ -20,6 +20,12 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasForeignKey(c => c.FirmId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(c => c.Branch)
+            .WithMany(b => b.Customers)
+            .HasForeignKey(c => c.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(c => c.FirmId);
+        builder.HasIndex(c => c.BranchId);
     }
 }

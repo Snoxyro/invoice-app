@@ -34,7 +34,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey(u => u.ProfileId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(u => u.Branch)
+            .WithMany(b => b.Users)
+            .HasForeignKey(u => u.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(u => u.FirmId);
         builder.HasIndex(u => u.ProfileId);
+        builder.HasIndex(u => u.BranchId);
     }
 }

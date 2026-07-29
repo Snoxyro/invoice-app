@@ -9,5 +9,7 @@ public class Customer : BaseEntity
     public string Email { get; set; } = string.Empty;
     public int FirmId { get; set; }
     public Firm Firm { get; set; } = null!;
+    public int? BranchId { get; set; }
+    public Branch? Branch { get; set; }
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

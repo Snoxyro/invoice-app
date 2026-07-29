@@ -12,6 +12,7 @@ namespace InvoiceApp.Service.Firms;
 public class FirmService : IFirmService
 {
     private const string SystemAdminProfileName = "admin";
+    private const string HeadquartersBranchName = "Merkez";
 
     private readonly IRepository<Firm> _firmRepository;
     private readonly IRepository<Profile> _profileRepository;
@@ -20,6 +21,7 @@ public class FirmService : IFirmService
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<Invoice> _invoiceRepository;
+    private readonly IRepository<Branch> _branchRepository;
     private readonly IPasswordHasher _passwordHasher;
 
     public FirmService(
@@ -30,6 +32,7 @@ public class FirmService : IFirmService
         IRepository<VatRate> vatRateRepository,
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
+        IRepository<Branch> branchRepository,
         IPasswordHasher passwordHasher)
     {
         _firmRepository = firmRepository;
@@ -39,6 +42,7 @@ public class FirmService : IFirmService
         _vatRateRepository = vatRateRepository;
         _customerRepository = customerRepository;
         _invoiceRepository = invoiceRepository;
+        _branchRepository = branchRepository;
         _passwordHasher = passwordHasher;
     }
 
@@ -67,11 +71,28 @@ public class FirmService : IFirmService
 
         var firm = new Firm { Name = request.FirmName };
 
+        var headquarters = new Branch
+        {
+            Firm = firm,
+            Name = HeadquartersBranchName,
+            IsHeadquarters = true
+        };
+
+        headquarters.InvoiceSeries.Add(new InvoiceSeries
+        {
+            Branch = headquarters,
+            Prefix = DeriveSeriesPrefix(HeadquartersBranchName),
+            LastUsedYear = DateTime.UtcNow.Year,
+            NextNumber = 1,
+            IsActive = true
+        });
+
         var adminProfile = new Profile
         {
             Firm = firm,
             Name = SystemAdminProfileName,
-            IsSystem = true
+            IsSystem = true,
+            CanAccessAllBranches = true
         };
 
         foreach (var permission in allPermissions)
@@ -88,12 +109,14 @@ public class FirmService : IFirmService
         {
             Firm = firm,
             Profile = adminProfile,
+            Branch = headquarters,
             UserName = request.FirstUserName,
             PasswordHash = _passwordHasher.HashPassword(request.FirstUserPassword),
             Role = UserRole.FirmUser
         };
 
         await _firmRepository.AddAsync(firm);
+        await _branchRepository.AddAsync(headquarters);
         await _profileRepository.AddAsync(adminProfile);
         await _userRepository.AddAsync(firstUser);
 
@@ -156,6 +179,13 @@ public class FirmService : IFirmService
             _profileRepository.Remove(profile);
         }
 
+        var firmBranches = await _branchRepository.Query().Where(b => b.FirmId == firmId).ToListAsync();
+
+        foreach (var branch in firmBranches)
+        {
+            _branchRepository.Remove(branch);
+        }
+
         _firmRepository.Remove(firm);
         await _firmRepository.SaveChangesAsync();
     }
@@ -198,6 +228,21 @@ public class FirmService : IFirmService
             Page = pagedFirms.Page,
             PageSize = pagedFirms.PageSize
         };
+    }
+
+    private static string DeriveSeriesPrefix(string branchName)
+    {
+        var normalized = branchName
+            .Replace('Ç', 'C').Replace('ç', 'c')
+            .Replace('Ğ', 'G').Replace('ğ', 'g')
+            .Replace('İ', 'I').Replace('ı', 'i')
+            .Replace('Ö', 'O').Replace('ö', 'o')
+            .Replace('Ş', 'S').Replace('ş', 's')
+            .Replace('Ü', 'U').Replace('ü', 'u');
+
+        var alphanumeric = new string(normalized.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+        return alphanumeric.Length >= 3 ? alphanumeric[..3] : alphanumeric.PadRight(3, '0');
     }
 
     private static FirmResponse MapToResponse(Firm firm)

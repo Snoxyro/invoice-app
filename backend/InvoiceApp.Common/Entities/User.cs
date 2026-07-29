@@ -10,5 +10,7 @@ public class User : BaseEntity
     public Firm? Firm { get; set; }
     public int? ProfileId { get; set; }
     public Profile? Profile { get; set; }
+    public int? BranchId { get; set; }
+    public Branch? Branch { get; set; }
     public ICollection<Invoice> CreatedInvoices { get; set; } = new List<Invoice>();
 }
