@@ -222,7 +222,7 @@ public class InvoiceService : IInvoiceService
         return _eInvoiceTransformer.TransformToHtml(xmlBytes);
     }
 
-    public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
+    public async Task<InvoiceListResponse> GetPagedAsync(int currentUserId, InvoiceListRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
@@ -246,12 +246,28 @@ public class InvoiceService : IInvoiceService
             query = query.Where(i => i.InvoiceDate <= request.EndDate.Value);
         }
 
+        if (request.Status.HasValue)
+        {
+            query = query.Where(i => i.Status == request.Status.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             query = query.Where(i =>
                 (i.InvoiceNumber != null && i.InvoiceNumber.Contains(request.SearchTerm)) ||
                 i.Customer.Title.Contains(request.SearchTerm));
         }
+
+        var totals = await query
+            .Select(i => new { i.Subtotal, i.VatTotal, i.GrandTotal })
+            .GroupBy(_ => 1)
+            .Select(g => new InvoiceTotalsResponse
+            {
+                SubtotalSum = g.Sum(x => x.Subtotal),
+                VatTotalSum = g.Sum(x => x.VatTotal),
+                GrandTotalSum = g.Sum(x => x.GrandTotal)
+            })
+            .FirstOrDefaultAsync() ?? new InvoiceTotalsResponse();
 
         query = request.SortBy?.ToLower() switch
         {
@@ -271,7 +287,7 @@ public class InvoiceService : IInvoiceService
 
         var pagedInvoices = await query.ToPagedResultAsync(request.Page, request.PageSize);
 
-        return new PagedResult<InvoiceListItemResponse>
+        return new InvoiceListResponse
         {
             Items = pagedInvoices.Items.Select(i => new InvoiceListItemResponse
             {
@@ -290,7 +306,8 @@ public class InvoiceService : IInvoiceService
             }).ToList(),
             TotalCount = pagedInvoices.TotalCount,
             Page = pagedInvoices.Page,
-            PageSize = pagedInvoices.PageSize
+            PageSize = pagedInvoices.PageSize,
+            Totals = totals
         };
     }
 

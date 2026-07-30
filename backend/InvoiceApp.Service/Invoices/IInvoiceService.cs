@@ -1,5 +1,4 @@
 using InvoiceApp.Common.Dtos.Invoices;
-using InvoiceApp.Common.Paging;
 
 namespace InvoiceApp.Service.Invoices;
 
@@ -11,5 +10,5 @@ public interface IInvoiceService
     Task DeleteAsync(int currentUserId, int invoiceId);
     Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId);
     Task<string> GetPreviewHtmlAsync(int currentUserId, int invoiceId);
-    Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request);
+    Task<InvoiceListResponse> GetPagedAsync(int currentUserId, InvoiceListRequest request);
 }

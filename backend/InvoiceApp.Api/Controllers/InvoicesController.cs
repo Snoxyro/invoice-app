@@ -2,7 +2,6 @@ using InvoiceApp.Api.Authorization;
 using InvoiceApp.Api.Extensions;
 using InvoiceApp.Common.Dtos.Invoices;
 using InvoiceApp.Common.Entities;
-using InvoiceApp.Common.Paging;
 using InvoiceApp.Service.Invoices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +22,7 @@ public class InvoicesController : ControllerBase
 
     [HttpGet]
     [RequirePermission(PermissionResource.Invoices, PermissionAction.Read)]
-    public async Task<ActionResult<PagedResult<InvoiceListItemResponse>>> GetPaged([FromQuery] InvoiceListRequest request)
+    public async Task<ActionResult<InvoiceListResponse>> GetPaged([FromQuery] InvoiceListRequest request)
     {
         var result = await _invoiceService.GetPagedAsync(User.GetUserId(), request);
         return Ok(result);
