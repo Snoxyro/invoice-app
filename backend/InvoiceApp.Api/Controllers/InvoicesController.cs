@@ -37,6 +37,14 @@ public class InvoicesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:int}/preview")]
+    [RequirePermission(PermissionResource.Invoices, PermissionAction.Read)]
+    public async Task<ContentResult> Preview(int id)
+    {
+        var html = await _invoiceService.GetPreviewHtmlAsync(User.GetUserId(), id);
+        return Content(html, "text/html");
+    }
+
     [HttpPost]
     [RequirePermission(PermissionResource.Invoices, PermissionAction.Create)]
     public async Task<ActionResult<InvoiceResponse>> Create(InvoiceCreateRequest request)

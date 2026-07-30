@@ -10,5 +10,6 @@ public interface IInvoiceService
     Task<InvoiceResponse> SendAsync(int currentUserId, int invoiceId);
     Task DeleteAsync(int currentUserId, int invoiceId);
     Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId);
+    Task<string> GetPreviewHtmlAsync(int currentUserId, int invoiceId);
     Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request);
 }

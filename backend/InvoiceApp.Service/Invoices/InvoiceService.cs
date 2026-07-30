@@ -4,6 +4,7 @@ using InvoiceApp.Common.Exceptions;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
+using InvoiceApp.Service.EInvoice;
 using InvoiceApp.Service.Permissions;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,7 @@ public class InvoiceService : IInvoiceService
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
     private readonly IPermissionService _permissionService;
+    private readonly IEInvoiceTransformer _eInvoiceTransformer;
     private readonly AppDbContext _dbContext;
 
     public InvoiceService(
@@ -27,6 +29,7 @@ public class InvoiceService : IInvoiceService
         IRepository<VatRate> vatRateRepository,
         IRepository<InvoiceSeries> invoiceSeriesRepository,
         IPermissionService permissionService,
+        IEInvoiceTransformer eInvoiceTransformer,
         AppDbContext dbContext)
     {
         _invoiceRepository = invoiceRepository;
@@ -34,6 +37,7 @@ public class InvoiceService : IInvoiceService
         _vatRateRepository = vatRateRepository;
         _invoiceSeriesRepository = invoiceSeriesRepository;
         _permissionService = permissionService;
+        _eInvoiceTransformer = eInvoiceTransformer;
         _dbContext = dbContext;
     }
 
@@ -202,6 +206,22 @@ public class InvoiceService : IInvoiceService
         return MapToResponse(invoice, invoice.Customer.Title, vatRates);
     }
 
+    public async Task<string> GetPreviewHtmlAsync(int currentUserId, int invoiceId)
+    {
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var invoice = await GetOwnedInvoiceAsync(
+            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true);
+
+        var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
+        var vatRates = await _vatRateRepository.Query()
+            .Where(v => vatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+
+        var xmlBytes = EInvoiceXmlBuilder.Build(invoice, vatRates);
+
+        return _eInvoiceTransformer.TransformToHtml(xmlBytes);
+    }
+
     public async Task<PagedResult<InvoiceListItemResponse>> GetPagedAsync(int currentUserId, InvoiceListRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
@@ -314,7 +334,12 @@ public class InvoiceService : IInvoiceService
     }
 
     private async Task<Invoice> GetOwnedInvoiceAsync(
-        UserPermissionContext context, int invoiceId, bool includeLines = false, bool includeCustomer = false)
+        UserPermissionContext context,
+        int invoiceId,
+        bool includeLines = false,
+        bool includeCustomer = false,
+        bool includeFirm = false,
+        bool includeBranch = false)
     {
         var query = _invoiceRepository.Query()
             .Where(i => i.InvoiceId == invoiceId && i.FirmId == context.FirmId);
@@ -327,6 +352,16 @@ public class InvoiceService : IInvoiceService
         if (includeCustomer)
         {
             query = query.Include(i => i.Customer);
+        }
+
+        if (includeFirm)
+        {
+            query = query.Include(i => i.Firm);
+        }
+
+        if (includeBranch)
+        {
+            query = query.Include(i => i.Branch);
         }
 
         if (!context.CanAccessAllBranches)
