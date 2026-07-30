@@ -1,10 +1,12 @@
 using InvoiceApp.Common.Dtos.Branches;
+using InvoiceApp.Common.Dtos.InvoiceSeries;
 using InvoiceApp.Common.Entities;
 using InvoiceApp.Common.Exceptions;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
 using InvoiceApp.Service.Permissions;
+using InvoiceApp.Service.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceApp.Service.Branches;
@@ -15,6 +17,7 @@ public class BranchService : IBranchService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<Invoice> _invoiceRepository;
+    private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
     private readonly IPermissionService _permissionService;
 
     public BranchService(
@@ -22,12 +25,14 @@ public class BranchService : IBranchService
         IRepository<User> userRepository,
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
+        IRepository<InvoiceSeries> invoiceSeriesRepository,
         IPermissionService permissionService)
     {
         _branchRepository = branchRepository;
         _userRepository = userRepository;
         _customerRepository = customerRepository;
         _invoiceRepository = invoiceRepository;
+        _invoiceSeriesRepository = invoiceSeriesRepository;
         _permissionService = permissionService;
     }
 
@@ -58,6 +63,17 @@ public class BranchService : IBranchService
             Email = request.Email,
             Website = request.Website
         };
+
+        var seriesPrefix = await GenerateUniqueSeriesPrefixAsync(currentFirmId, request.Name);
+
+        branch.InvoiceSeries.Add(new InvoiceSeries
+        {
+            Branch = branch,
+            Prefix = seriesPrefix,
+            LastUsedYear = DateTime.UtcNow.Year,
+            NextNumber = 1,
+            IsActive = true
+        });
 
         await _branchRepository.AddAsync(branch);
         await _branchRepository.SaveChangesAsync();
@@ -151,6 +167,92 @@ public class BranchService : IBranchService
         };
     }
 
+    public async Task<List<InvoiceSeriesResponse>> GetSeriesAsync(int currentUserId, int branchId)
+    {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        await GetOwnedBranchAsync(currentFirmId, branchId);
+
+        var series = await _invoiceSeriesRepository.Query()
+            .Where(s => s.BranchId == branchId)
+            .OrderBy(s => s.Prefix)
+            .ToListAsync();
+
+        return series.Select(MapSeriesToResponse).ToList();
+    }
+
+    public async Task<InvoiceSeriesResponse> CreateSeriesAsync(
+        int currentUserId, int branchId, InvoiceSeriesCreateRequest request)
+    {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        await GetOwnedBranchAsync(currentFirmId, branchId);
+
+        var normalizedPrefix = request.Prefix.Trim().ToUpperInvariant();
+
+        if (!SeriesPrefixGenerator.IsValidFormat(normalizedPrefix))
+        {
+            throw new BusinessRuleException(ErrorCodes.SeriesPrefixInvalidFormat);
+        }
+
+        var prefixExists = await _invoiceSeriesRepository.Query()
+            .AnyAsync(s => s.Branch.FirmId == currentFirmId && s.Prefix == normalizedPrefix);
+
+        if (prefixExists)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.SeriesPrefixAlreadyExists,
+                new Dictionary<string, string> { ["prefix"] = normalizedPrefix });
+        }
+
+        var series = new InvoiceSeries
+        {
+            BranchId = branchId,
+            Prefix = normalizedPrefix,
+            LastUsedYear = DateTime.UtcNow.Year,
+            NextNumber = 1,
+            IsActive = true
+        };
+
+        await _invoiceSeriesRepository.AddAsync(series);
+        await _invoiceSeriesRepository.SaveChangesAsync();
+
+        return MapSeriesToResponse(series);
+    }
+
+    public async Task<InvoiceSeriesResponse> UpdateSeriesAsync(
+        int currentUserId, int branchId, int seriesId, InvoiceSeriesUpdateRequest request)
+    {
+        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        await GetOwnedBranchAsync(currentFirmId, branchId);
+
+        var series = await _invoiceSeriesRepository.Query()
+            .FirstOrDefaultAsync(s => s.InvoiceSeriesId == seriesId && s.BranchId == branchId);
+
+        if (series is null)
+        {
+            throw new NotFoundException(
+                ErrorCodes.SeriesNotFound,
+                new Dictionary<string, string> { ["invoiceSeriesId"] = seriesId.ToString() });
+        }
+
+        if (!request.IsActive && series.IsActive)
+        {
+            var otherActiveSeriesExists = await _invoiceSeriesRepository.Query()
+                .AnyAsync(s => s.BranchId == branchId && s.InvoiceSeriesId != seriesId && s.IsActive);
+
+            if (!otherActiveSeriesExists)
+            {
+                throw new BusinessRuleException(ErrorCodes.SeriesLastActiveCannotDeactivate);
+            }
+        }
+
+        series.IsActive = request.IsActive;
+
+        _invoiceSeriesRepository.Update(series);
+        await _invoiceSeriesRepository.SaveChangesAsync();
+
+        return MapSeriesToResponse(series);
+    }
+
     private async Task<int> GetCurrentFirmIdAsync(int currentUserId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
@@ -165,6 +267,37 @@ public class BranchService : IBranchService
         return branch ?? throw new NotFoundException(
             ErrorCodes.BranchNotFound,
             new Dictionary<string, string> { ["branchId"] = branchId.ToString() });
+    }
+
+    private async Task<string> GenerateUniqueSeriesPrefixAsync(int firmId, string branchName)
+    {
+        var basePrefix = SeriesPrefixGenerator.Derive(branchName);
+
+        var existingPrefixes = await _invoiceSeriesRepository.Query()
+            .Where(s => s.Branch.FirmId == firmId)
+            .Select(s => s.Prefix)
+            .ToListAsync();
+
+        if (!existingPrefixes.Contains(basePrefix))
+        {
+            return basePrefix;
+        }
+
+        const string candidateChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        foreach (var candidateChar in candidateChars)
+        {
+            var candidate = basePrefix[..2] + candidateChar;
+
+            if (!existingPrefixes.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new BusinessRuleException(
+            ErrorCodes.SeriesPrefixAlreadyExists,
+            new Dictionary<string, string> { ["prefix"] = basePrefix });
     }
 
     private static BranchResponse MapToResponse(Branch branch)
@@ -183,6 +316,19 @@ public class BranchService : IBranchService
             Website = branch.Website,
             CreatedDate = branch.CreatedDate,
             UpdatedDate = branch.UpdatedDate
+        };
+    }
+
+    private static InvoiceSeriesResponse MapSeriesToResponse(InvoiceSeries series)
+    {
+        return new InvoiceSeriesResponse
+        {
+            InvoiceSeriesId = series.InvoiceSeriesId,
+            BranchId = series.BranchId,
+            Prefix = series.Prefix,
+            LastUsedYear = series.LastUsedYear,
+            NextNumber = series.NextNumber,
+            IsActive = series.IsActive
         };
     }
 }

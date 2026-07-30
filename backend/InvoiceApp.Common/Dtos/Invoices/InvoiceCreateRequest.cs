@@ -3,7 +3,7 @@ namespace InvoiceApp.Common.Dtos.Invoices;
 public class InvoiceCreateRequest
 {
     public int CustomerId { get; set; }
-    public string InvoiceNumber { get; set; } = string.Empty;
+    public int InvoiceSeriesId { get; set; }
     public DateTime InvoiceDate { get; set; }
     public List<InvoiceLineRequest> Lines { get; set; } = new();
 }

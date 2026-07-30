@@ -11,54 +11,51 @@ namespace InvoiceApp.Service.Invoices;
 
 public class InvoiceService : IInvoiceService
 {
+    private const string SimulatedGibStatusCode = "1300";
+    private const string SimulatedGibStatusMessage = "Başarıyla Tamamlandı";
+
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<VatRate> _vatRateRepository;
+    private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
     private readonly IPermissionService _permissionService;
+    private readonly AppDbContext _dbContext;
 
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
         IRepository<Customer> customerRepository,
         IRepository<VatRate> vatRateRepository,
-        IPermissionService permissionService)
+        IRepository<InvoiceSeries> invoiceSeriesRepository,
+        IPermissionService permissionService,
+        AppDbContext dbContext)
     {
         _invoiceRepository = invoiceRepository;
         _customerRepository = customerRepository;
         _vatRateRepository = vatRateRepository;
+        _invoiceSeriesRepository = invoiceSeriesRepository;
         _permissionService = permissionService;
+        _dbContext = dbContext;
     }
 
     public async Task<InvoiceResponse> CreateAsync(int currentUserId, InvoiceCreateRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-
-        var invoiceNumberExists = await _invoiceRepository.Query()
-            .AnyAsync(i => i.FirmId == currentFirmId && i.InvoiceNumber == request.InvoiceNumber);
-
-        if (invoiceNumberExists)
-        {
-            throw new BusinessRuleException(
-                ErrorCodes.InvoiceNumberAlreadyExists,
-                new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
-        }
+        var currentBranchId = context.BranchId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoBranch);
 
         var customer = await GetOwnedCustomerAsync(context, request.CustomerId);
+        var series = await GetUsableSeriesAsync(context, request.InvoiceSeriesId);
 
-        if (request.Lines.Count == 0)
-        {
-            throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
-        }
-
-        var vatRates = await GetAllowedVatRatesAsync(request.Lines, context);
+        var vatRates = await GetVatRatesForLinesAsync(request.Lines);
 
         var invoice = new Invoice
         {
             CustomerId = request.CustomerId,
-            InvoiceNumber = request.InvoiceNumber,
             InvoiceDate = request.InvoiceDate,
             FirmId = currentFirmId,
-            BranchId = context.BranchId,
+            BranchId = currentBranchId,
+            InvoiceSeriesId = series.InvoiceSeriesId,
+            Status = InvoiceStatus.Draft,
             CreatedByUserId = currentUserId,
             InvoiceLines = request.Lines.Select(l => new InvoiceLine
             {
@@ -72,8 +69,6 @@ public class InvoiceService : IInvoiceService
 
         ApplyTotals(invoice, vatRates);
 
-        ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
-
         await _invoiceRepository.AddAsync(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
@@ -83,35 +78,22 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true);
 
-        var invoiceNumberExists = await _invoiceRepository.Query()
-            .AnyAsync(i =>
-                i.FirmId == currentFirmId &&
-                i.InvoiceNumber == request.InvoiceNumber &&
-                i.InvoiceId != invoiceId);
-
-        if (invoiceNumberExists)
+        if (invoice.Status == InvoiceStatus.Sent)
         {
-            throw new BusinessRuleException(
-                ErrorCodes.InvoiceNumberAlreadyExists,
-                new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
+            throw new BusinessRuleException(ErrorCodes.InvoiceAlreadySentCannotModify);
         }
 
         var customer = await GetOwnedCustomerAsync(context, request.CustomerId);
+        var series = await GetUsableSeriesAsync(context, request.InvoiceSeriesId);
 
-        if (request.Lines.Count == 0)
-        {
-            throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
-        }
-
-        var vatRates = await GetAllowedVatRatesAsync(request.Lines, context);
+        var vatRates = await GetVatRatesForLinesAsync(request.Lines);
 
         invoice.CustomerId = request.CustomerId;
-        invoice.InvoiceNumber = request.InvoiceNumber;
         invoice.InvoiceDate = request.InvoiceDate;
+        invoice.InvoiceSeriesId = series.InvoiceSeriesId;
 
         invoice.InvoiceLines.Clear();
 
@@ -129,12 +111,70 @@ public class InvoiceService : IInvoiceService
 
         ApplyTotals(invoice, vatRates);
 
-        ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
-
         _invoiceRepository.Update(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
         return MapToResponse(invoice, customer.Title, vatRates);
+    }
+
+    public async Task<InvoiceResponse> SendAsync(int currentUserId, int invoiceId)
+    {
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeCustomer: true);
+
+        if (invoice.Status == InvoiceStatus.Sent)
+        {
+            throw new BusinessRuleException(ErrorCodes.InvoiceAlreadySentCannotModify);
+        }
+
+        if (invoice.InvoiceLines.Count == 0)
+        {
+            throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
+        }
+
+        var lineRequests = invoice.InvoiceLines
+            .Select(l => new InvoiceLineRequest
+            {
+                ItemName = l.ItemName,
+                Quantity = l.Quantity,
+                Price = l.Price,
+                VatRateId = l.VatRateId
+            })
+            .ToList();
+
+        var vatRates = await GetAllowedVatRatesAsync(lineRequests, context);
+
+        ApplyTotals(invoice, vatRates);
+
+        ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
+
+        var executionStrategy = _dbContext.Database.CreateExecutionStrategy();
+
+        await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            try
+            {
+                invoice.InvoiceNumber = await AllocateInvoiceNumberAsync(invoice.InvoiceSeriesId);
+                invoice.Status = InvoiceStatus.Sent;
+                invoice.GibStatusCode = SimulatedGibStatusCode;
+                invoice.GibStatusMessage = SimulatedGibStatusMessage;
+                invoice.SentDate = DateTime.UtcNow;
+
+                _invoiceRepository.Update(invoice);
+                await _invoiceRepository.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+
+        return MapToResponse(invoice, invoice.Customer.Title, vatRates);
     }
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
@@ -189,7 +229,7 @@ public class InvoiceService : IInvoiceService
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             query = query.Where(i =>
-                i.InvoiceNumber.Contains(request.SearchTerm) ||
+                (i.InvoiceNumber != null && i.InvoiceNumber.Contains(request.SearchTerm)) ||
                 i.Customer.Title.Contains(request.SearchTerm));
         }
 
@@ -224,6 +264,7 @@ public class InvoiceService : IInvoiceService
                 CustomerId = i.CustomerId,
                 CustomerTitle = i.Customer.Title,
                 BranchId = i.BranchId,
+                Status = i.Status,
                 CreatedDate = i.CreatedDate,
                 UpdatedDate = i.UpdatedDate
             }).ToList(),
@@ -248,6 +289,28 @@ public class InvoiceService : IInvoiceService
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
+    }
+
+    private async Task<InvoiceSeries> GetUsableSeriesAsync(UserPermissionContext context, int invoiceSeriesId)
+    {
+        var series = await _invoiceSeriesRepository.Query()
+            .FirstOrDefaultAsync(s => s.InvoiceSeriesId == invoiceSeriesId && s.BranchId == context.BranchId);
+
+        if (series is null)
+        {
+            throw new NotFoundException(
+                ErrorCodes.SeriesNotFound,
+                new Dictionary<string, string> { ["invoiceSeriesId"] = invoiceSeriesId.ToString() });
+        }
+
+        if (!series.IsActive)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.SeriesNotActive,
+                new Dictionary<string, string> { ["invoiceSeriesId"] = invoiceSeriesId.ToString() });
+        }
+
+        return series;
     }
 
     private async Task<Invoice> GetOwnedInvoiceAsync(
@@ -278,6 +341,22 @@ public class InvoiceService : IInvoiceService
             new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
     }
 
+    private async Task<Dictionary<int, decimal>> GetVatRatesForLinesAsync(List<InvoiceLineRequest> lines)
+    {
+        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
+
+        var vatRates = await _vatRateRepository.Query()
+            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+
+        if (vatRates.Count != requestedVatRateIds.Count)
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidVatRateSelection);
+        }
+
+        return vatRates;
+    }
+
     private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
         List<InvoiceLineRequest> lines, UserPermissionContext context)
     {
@@ -295,6 +374,26 @@ public class InvoiceService : IInvoiceService
         return await _vatRateRepository.Query()
             .Where(v => requestedVatRateIds.Contains(v.VatRateId))
             .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+    }
+
+    private async Task<string> AllocateInvoiceNumberAsync(int invoiceSeriesId)
+    {
+        var series = await _dbContext.InvoiceSeries
+            .FromSqlInterpolated($"SELECT * FROM InvoiceSeries WITH (UPDLOCK, ROWLOCK) WHERE InvoiceSeriesId = {invoiceSeriesId}")
+            .SingleAsync();
+
+        var currentYear = DateTime.UtcNow.Year;
+
+        if (series.LastUsedYear != currentYear)
+        {
+            series.LastUsedYear = currentYear;
+            series.NextNumber = 1;
+        }
+
+        var allocatedNumber = series.NextNumber;
+        series.NextNumber++;
+
+        return $"{series.Prefix}{currentYear}{allocatedNumber:D9}";
     }
 
     private static void ApplyTotals(Invoice invoice, Dictionary<int, decimal> vatRates)
@@ -346,6 +445,11 @@ public class InvoiceService : IInvoiceService
             CustomerId = invoice.CustomerId,
             CustomerTitle = customerTitle,
             BranchId = invoice.BranchId,
+            InvoiceSeriesId = invoice.InvoiceSeriesId,
+            Status = invoice.Status,
+            GibStatusCode = invoice.GibStatusCode,
+            GibStatusMessage = invoice.GibStatusMessage,
+            SentDate = invoice.SentDate,
             CreatedDate = invoice.CreatedDate,
             UpdatedDate = invoice.UpdatedDate,
             Lines = invoice.InvoiceLines.Select(l => new InvoiceLineResponse

@@ -1,9 +1,11 @@
+using InvoiceApp.Common.Entities;
+
 namespace InvoiceApp.Common.Dtos.Invoices;
 
 public class InvoiceListItemResponse
 {
     public int InvoiceId { get; set; }
-    public string InvoiceNumber { get; set; } = string.Empty;
+    public string? InvoiceNumber { get; set; }
     public DateTime InvoiceDate { get; set; }
     public decimal Subtotal { get; set; }
     public decimal VatTotal { get; set; }
@@ -11,6 +13,7 @@ public class InvoiceListItemResponse
     public int CustomerId { get; set; }
     public string CustomerTitle { get; set; } = string.Empty;
     public int? BranchId { get; set; }
+    public InvoiceStatus Status { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
 }

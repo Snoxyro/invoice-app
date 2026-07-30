@@ -9,6 +9,7 @@ public static class ErrorCodes
     public const string CannotEditOwnAccount = "CANNOT_EDIT_OWN_ACCOUNT";
     public const string FirmHasRecordsCannotDelete = "FIRM_HAS_RECORDS_CANNOT_DELETE";
     public const string UserHasNoFirm = "USER_HAS_NO_FIRM";
+    public const string UserHasNoBranch = "USER_HAS_NO_BRANCH";
     public const string CustomerNotFound = "CUSTOMER_NOT_FOUND";
     public const string InvalidTaxNumberFormat = "INVALID_TAX_NUMBER_FORMAT";
     public const string CustomerTaxNumberAlreadyExists = "CUSTOMER_TAX_NUMBER_ALREADY_EXISTS";
@@ -18,6 +19,7 @@ public static class ErrorCodes
     public const string InvoiceRequiresAtLeastOneLine = "INVOICE_REQUIRES_AT_LEAST_ONE_LINE";
     public const string InvoiceAmountBelowMinimum = "INVOICE_AMOUNT_BELOW_MINIMUM";
     public const string InvoiceAmountAboveMaximum = "INVOICE_AMOUNT_ABOVE_MAXIMUM";
+    public const string InvoiceAlreadySentCannotModify = "INVOICE_ALREADY_SENT_CANNOT_MODIFY";
     public const string FirmNotFound = "FIRM_NOT_FOUND";
     public const string FirmNameAlreadyExists = "FIRM_NAME_ALREADY_EXISTS";
     public const string ProfileNotFound = "PROFILE_NOT_FOUND";
@@ -36,5 +38,10 @@ public static class ErrorCodes
     public const string BranchNotFound = "BRANCH_NOT_FOUND";
     public const string BranchHasRecordsCannotDelete = "BRANCH_HAS_RECORDS_CANNOT_DELETE";
     public const string BranchNameAlreadyExists = "BRANCH_NAME_ALREADY_EXISTS";
+    public const string SeriesNotFound = "SERIES_NOT_FOUND";
+    public const string SeriesNotActive = "SERIES_NOT_ACTIVE";
+    public const string SeriesPrefixAlreadyExists = "SERIES_PREFIX_ALREADY_EXISTS";
+    public const string SeriesPrefixInvalidFormat = "SERIES_PREFIX_INVALID_FORMAT";
+    public const string SeriesLastActiveCannotDeactivate = "SERIES_LAST_ACTIVE_CANNOT_DEACTIVATE";
     public const string UnexpectedError = "UNEXPECTED_ERROR";
 }

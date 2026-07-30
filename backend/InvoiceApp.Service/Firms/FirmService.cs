@@ -5,6 +5,7 @@ using InvoiceApp.Common.Paging;
 using InvoiceApp.Common.Security;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
+using InvoiceApp.Service.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceApp.Service.Firms;
@@ -81,7 +82,7 @@ public class FirmService : IFirmService
         headquarters.InvoiceSeries.Add(new InvoiceSeries
         {
             Branch = headquarters,
-            Prefix = DeriveSeriesPrefix(HeadquartersBranchName),
+            Prefix = SeriesPrefixGenerator.Derive(HeadquartersBranchName),
             LastUsedYear = DateTime.UtcNow.Year,
             NextNumber = 1,
             IsActive = true
@@ -228,21 +229,6 @@ public class FirmService : IFirmService
             Page = pagedFirms.Page,
             PageSize = pagedFirms.PageSize
         };
-    }
-
-    private static string DeriveSeriesPrefix(string branchName)
-    {
-        var normalized = branchName
-            .Replace('Ç', 'C').Replace('ç', 'c')
-            .Replace('Ğ', 'G').Replace('ğ', 'g')
-            .Replace('İ', 'I').Replace('ı', 'i')
-            .Replace('Ö', 'O').Replace('ö', 'o')
-            .Replace('Ş', 'S').Replace('ş', 's')
-            .Replace('Ü', 'U').Replace('ü', 'u');
-
-        var alphanumeric = new string(normalized.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
-
-        return alphanumeric.Length >= 3 ? alphanumeric[..3] : alphanumeric.PadRight(3, '0');
     }
 
     private static FirmResponse MapToResponse(Firm firm)

@@ -1,4 +1,5 @@
 using InvoiceApp.Common.Dtos.Branches;
+using InvoiceApp.Common.Dtos.InvoiceSeries;
 using InvoiceApp.Common.Paging;
 
 namespace InvoiceApp.Service.Branches;
@@ -10,4 +11,7 @@ public interface IBranchService
     Task DeleteAsync(int currentUserId, int branchId);
     Task<BranchResponse> GetByIdAsync(int currentUserId, int branchId);
     Task<PagedResult<BranchResponse>> GetPagedAsync(int currentUserId, PagedRequest request);
+    Task<List<InvoiceSeriesResponse>> GetSeriesAsync(int currentUserId, int branchId);
+    Task<InvoiceSeriesResponse> CreateSeriesAsync(int currentUserId, int branchId, InvoiceSeriesCreateRequest request);
+    Task<InvoiceSeriesResponse> UpdateSeriesAsync(int currentUserId, int branchId, int seriesId, InvoiceSeriesUpdateRequest request);
 }

@@ -1,3 +1,4 @@
+using InvoiceApp.Common.Dtos.InvoiceSeries;
 using InvoiceApp.Common.Dtos.VatRates;
 
 namespace InvoiceApp.Common.Dtos.Permissions;
@@ -11,4 +12,5 @@ public class MyPermissionsResponse
     public List<VatRateResponse> VatRates { get; set; } = new();
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
+    public List<InvoiceSeriesOptionResponse> AvailableInvoiceSeries { get; set; } = new();
 }

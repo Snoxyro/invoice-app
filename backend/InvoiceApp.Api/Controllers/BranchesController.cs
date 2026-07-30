@@ -1,6 +1,7 @@
 using InvoiceApp.Api.Authorization;
 using InvoiceApp.Api.Extensions;
 using InvoiceApp.Common.Dtos.Branches;
+using InvoiceApp.Common.Dtos.InvoiceSeries;
 using InvoiceApp.Common.Entities;
 using InvoiceApp.Common.Paging;
 using InvoiceApp.Service.Branches;
@@ -59,5 +60,30 @@ public class BranchesController : ControllerBase
     {
         await _branchService.DeleteAsync(User.GetUserId(), id);
         return NoContent();
+    }
+
+    [HttpGet("{branchId:int}/series")]
+    [RequirePermission(PermissionResource.Branches, PermissionAction.Read)]
+    public async Task<ActionResult<List<InvoiceSeriesResponse>>> GetSeries(int branchId)
+    {
+        var result = await _branchService.GetSeriesAsync(User.GetUserId(), branchId);
+        return Ok(result);
+    }
+
+    [HttpPost("{branchId:int}/series")]
+    [RequirePermission(PermissionResource.Branches, PermissionAction.Update)]
+    public async Task<ActionResult<InvoiceSeriesResponse>> CreateSeries(int branchId, InvoiceSeriesCreateRequest request)
+    {
+        var result = await _branchService.CreateSeriesAsync(User.GetUserId(), branchId, request);
+        return CreatedAtAction(nameof(GetSeries), new { branchId }, result);
+    }
+
+    [HttpPut("{branchId:int}/series/{seriesId:int}")]
+    [RequirePermission(PermissionResource.Branches, PermissionAction.Update)]
+    public async Task<ActionResult<InvoiceSeriesResponse>> UpdateSeries(
+        int branchId, int seriesId, InvoiceSeriesUpdateRequest request)
+    {
+        var result = await _branchService.UpdateSeriesAsync(User.GetUserId(), branchId, seriesId, request);
+        return Ok(result);
     }
 }

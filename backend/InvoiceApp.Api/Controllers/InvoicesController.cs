@@ -53,6 +53,14 @@ public class InvoicesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:int}/send")]
+    [RequirePermission(PermissionResource.Invoices, PermissionAction.Update)]
+    public async Task<ActionResult<InvoiceResponse>> Send(int id)
+    {
+        var result = await _invoiceService.SendAsync(User.GetUserId(), id);
+        return Ok(result);
+    }
+
     [HttpDelete("{id:int}")]
     [RequirePermission(PermissionResource.Invoices, PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id)
