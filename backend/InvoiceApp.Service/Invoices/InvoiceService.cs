@@ -43,7 +43,7 @@ public class InvoiceService : IInvoiceService
                 new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
         }
 
-        var customer = await GetOwnedCustomerAsync(currentFirmId, request.CustomerId);
+        var customer = await GetOwnedCustomerAsync(context, request.CustomerId);
 
         if (request.Lines.Count == 0)
         {
@@ -58,6 +58,7 @@ public class InvoiceService : IInvoiceService
             InvoiceNumber = request.InvoiceNumber,
             InvoiceDate = request.InvoiceDate,
             FirmId = currentFirmId,
+            BranchId = context.BranchId,
             CreatedByUserId = currentUserId,
             InvoiceLines = request.Lines.Select(l => new InvoiceLine
             {
@@ -84,16 +85,7 @@ public class InvoiceService : IInvoiceService
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
-        var invoice = await _invoiceRepository.Query()
-            .Include(i => i.InvoiceLines)
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
-
-        if (invoice is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.InvoiceNotFound,
-                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
-        }
+        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true);
 
         var invoiceNumberExists = await _invoiceRepository.Query()
             .AnyAsync(i =>
@@ -108,7 +100,7 @@ public class InvoiceService : IInvoiceService
                 new Dictionary<string, string> { ["invoiceNumber"] = request.InvoiceNumber });
         }
 
-        var customer = await GetOwnedCustomerAsync(currentFirmId, request.CustomerId);
+        var customer = await GetOwnedCustomerAsync(context, request.CustomerId);
 
         if (request.Lines.Count == 0)
         {
@@ -148,17 +140,7 @@ public class InvoiceService : IInvoiceService
     public async Task DeleteAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-
-        var invoice = await _invoiceRepository.Query()
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
-
-        if (invoice is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.InvoiceNotFound,
-                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
-        }
+        var invoice = await GetOwnedInvoiceAsync(context, invoiceId);
 
         invoice.IsDeleted = true;
         invoice.DeletedDate = DateTime.UtcNow;
@@ -170,19 +152,7 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-
-        var invoice = await _invoiceRepository.Query()
-            .Include(i => i.InvoiceLines)
-            .Include(i => i.Customer)
-            .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.FirmId == currentFirmId);
-
-        if (invoice is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.InvoiceNotFound,
-                new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
-        }
+        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeCustomer: true);
 
         var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
         var vatRates = await _vatRateRepository.Query()
@@ -200,6 +170,11 @@ public class InvoiceService : IInvoiceService
         var query = _invoiceRepository.Query()
             .Include(i => i.Customer)
             .Where(i => i.FirmId == currentFirmId);
+
+        if (!context.CanAccessAllBranches)
+        {
+            query = query.Where(i => i.BranchId == context.BranchId);
+        }
 
         if (request.StartDate.HasValue)
         {
@@ -248,6 +223,7 @@ public class InvoiceService : IInvoiceService
                 GrandTotal = i.GrandTotal,
                 CustomerId = i.CustomerId,
                 CustomerTitle = i.Customer.Title,
+                BranchId = i.BranchId,
                 CreatedDate = i.CreatedDate,
                 UpdatedDate = i.UpdatedDate
             }).ToList(),
@@ -257,14 +233,49 @@ public class InvoiceService : IInvoiceService
         };
     }
 
-    private async Task<Customer> GetOwnedCustomerAsync(int currentFirmId, int customerId)
+    private async Task<Customer> GetOwnedCustomerAsync(UserPermissionContext context, int customerId)
     {
-        var customer = await _customerRepository.Query()
-            .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.FirmId == currentFirmId);
+        var query = _customerRepository.Query()
+            .Where(c => c.CustomerId == customerId && c.FirmId == context.FirmId);
+
+        if (!context.CanAccessAllBranches)
+        {
+            query = query.Where(c => c.BranchId == context.BranchId);
+        }
+
+        var customer = await query.FirstOrDefaultAsync();
 
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
+    }
+
+    private async Task<Invoice> GetOwnedInvoiceAsync(
+        UserPermissionContext context, int invoiceId, bool includeLines = false, bool includeCustomer = false)
+    {
+        var query = _invoiceRepository.Query()
+            .Where(i => i.InvoiceId == invoiceId && i.FirmId == context.FirmId);
+
+        if (includeLines)
+        {
+            query = query.Include(i => i.InvoiceLines);
+        }
+
+        if (includeCustomer)
+        {
+            query = query.Include(i => i.Customer);
+        }
+
+        if (!context.CanAccessAllBranches)
+        {
+            query = query.Where(i => i.BranchId == context.BranchId);
+        }
+
+        var invoice = await query.FirstOrDefaultAsync();
+
+        return invoice ?? throw new NotFoundException(
+            ErrorCodes.InvoiceNotFound,
+            new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
     }
 
     private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
@@ -334,6 +345,7 @@ public class InvoiceService : IInvoiceService
             GrandTotal = invoice.GrandTotal,
             CustomerId = invoice.CustomerId,
             CustomerTitle = customerTitle,
+            BranchId = invoice.BranchId,
             CreatedDate = invoice.CreatedDate,
             UpdatedDate = invoice.UpdatedDate,
             Lines = invoice.InvoiceLines.Select(l => new InvoiceLineResponse

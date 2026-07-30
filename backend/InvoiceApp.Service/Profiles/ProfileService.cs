@@ -57,7 +57,7 @@ public class ProfileService : IProfileService
         ValidateInvoiceRange(request.MinInvoiceAmount, request.MaxInvoiceAmount);
 
         var candidateDefinition = await BuildCandidateDefinitionAsync(
-            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount);
+            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount, request.CanAccessAllBranches);
 
         if (!candidateDefinition.IsSubsetOf(callerContext))
         {
@@ -70,7 +70,8 @@ public class ProfileService : IProfileService
             Name = request.Name,
             IsSystem = false,
             MinInvoiceAmount = request.MinInvoiceAmount,
-            MaxInvoiceAmount = request.MaxInvoiceAmount
+            MaxInvoiceAmount = request.MaxInvoiceAmount,
+            CanAccessAllBranches = request.CanAccessAllBranches
         };
 
         foreach (var permissionId in request.PermissionIds.Distinct())
@@ -134,7 +135,7 @@ public class ProfileService : IProfileService
         ValidateInvoiceRange(request.MinInvoiceAmount, request.MaxInvoiceAmount);
 
         var candidateDefinition = await BuildCandidateDefinitionAsync(
-            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount);
+            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount, request.CanAccessAllBranches);
 
         if (!candidateDefinition.IsSubsetOf(callerContext))
         {
@@ -144,6 +145,7 @@ public class ProfileService : IProfileService
         profile.Name = request.Name;
         profile.MinInvoiceAmount = request.MinInvoiceAmount;
         profile.MaxInvoiceAmount = request.MaxInvoiceAmount;
+        profile.CanAccessAllBranches = request.CanAccessAllBranches;
 
         var existingPermissionLinks = await _profilePermissionRepository.Query()
             .Where(pp => pp.ProfileId == profileId)
@@ -309,7 +311,8 @@ public class ProfileService : IProfileService
         List<int> permissionIds,
         List<int> vatRateIds,
         decimal? minInvoiceAmount,
-        decimal? maxInvoiceAmount)
+        decimal? maxInvoiceAmount,
+        bool canAccessAllBranches)
     {
         var distinctPermissionIds = permissionIds.Distinct().ToList();
 
@@ -356,7 +359,8 @@ public class ProfileService : IProfileService
             Permissions = permissionPairs,
             VatRateIds = distinctVatRateIds.ToHashSet(),
             MinInvoiceAmount = minInvoiceAmount,
-            MaxInvoiceAmount = maxInvoiceAmount
+            MaxInvoiceAmount = maxInvoiceAmount,
+            CanAccessAllBranches = canAccessAllBranches
         };
     }
 
@@ -377,6 +381,7 @@ public class ProfileService : IProfileService
             IsSystem = profile.IsSystem,
             MinInvoiceAmount = profile.MinInvoiceAmount,
             MaxInvoiceAmount = profile.MaxInvoiceAmount,
+            CanAccessAllBranches = profile.CanAccessAllBranches,
             PermissionIds = profile.ProfilePermissions.Select(pp => pp.PermissionId).ToList(),
             VatRateIds = profile.ProfileVatRates.Select(pv => pv.VatRateId).ToList(),
             CreatedDate = profile.CreatedDate,

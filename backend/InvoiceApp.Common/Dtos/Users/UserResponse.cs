@@ -9,6 +9,7 @@ public class UserResponse
     public UserRole Role { get; set; }
     public int? ProfileId { get; set; }
     public string? ProfileName { get; set; }
+    public int? BranchId { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
 }

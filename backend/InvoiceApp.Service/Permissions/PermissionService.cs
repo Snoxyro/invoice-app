@@ -32,7 +32,8 @@ public class PermissionService : IPermissionService
         {
             UserId = user.UserId,
             FirmId = user.FirmId,
-            ProfileId = user.ProfileId
+            ProfileId = user.ProfileId,
+            BranchId = user.BranchId
         };
 
         if (user.ProfileId is null)
@@ -47,6 +48,7 @@ public class PermissionService : IPermissionService
         context.VatRateIds = definition.VatRateIds;
         context.MinInvoiceAmount = definition.MinInvoiceAmount;
         context.MaxInvoiceAmount = definition.MaxInvoiceAmount;
+        context.CanAccessAllBranches = definition.CanAccessAllBranches;
 
         var profile = await _profileRepository.GetByIdAsync(user.ProfileId.Value);
         context.IsSystemProfile = profile?.IsSystem ?? false;
@@ -73,6 +75,7 @@ public class PermissionService : IPermissionService
         {
             MinInvoiceAmount = profile.MinInvoiceAmount,
             MaxInvoiceAmount = profile.MaxInvoiceAmount,
+            CanAccessAllBranches = profile.CanAccessAllBranches,
             PermissionIds = profile.ProfilePermissions.Select(pp => pp.PermissionId).ToHashSet(),
             Permissions = profile.ProfilePermissions
                 .Select(pp => (pp.Permission.Resource, pp.Permission.Action))

@@ -14,21 +14,25 @@ public class CustomerService : ICustomerService
 {
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<Invoice> _invoiceRepository;
+    private readonly IRepository<Branch> _branchRepository;
     private readonly IPermissionService _permissionService;
 
     public CustomerService(
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
+        IRepository<Branch> branchRepository,
         IPermissionService permissionService)
     {
         _customerRepository = customerRepository;
         _invoiceRepository = invoiceRepository;
+        _branchRepository = branchRepository;
         _permissionService = permissionService;
     }
 
     public async Task<CustomerResponse> CreateAsync(int currentUserId, CustomerCreateRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
+        var context = await GetCallerContextAsync(currentUserId);
+        var currentFirmId = context.FirmId!.Value;
 
         if (!Regex.IsMatch(request.TaxNumber, "^[0-9]+$"))
         {
@@ -45,13 +49,16 @@ public class CustomerService : ICustomerService
                 new Dictionary<string, string> { ["taxNumber"] = request.TaxNumber });
         }
 
+        var branchId = await ResolveBranchIdForCreateAsync(context, currentFirmId, request.BranchId);
+
         var customer = new Customer
         {
             TaxNumber = request.TaxNumber,
             Title = request.Title,
             Address = request.Address,
             Email = request.Email,
-            FirmId = currentFirmId
+            FirmId = currentFirmId,
+            BranchId = branchId
         };
 
         await _customerRepository.AddAsync(customer);
@@ -62,8 +69,8 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerResponse> UpdateAsync(int currentUserId, int customerId, CustomerUpdateRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
-        var customer = await GetOwnedCustomerAsync(currentFirmId, customerId);
+        var context = await GetCallerContextAsync(currentUserId);
+        var customer = await GetOwnedCustomerAsync(context, customerId);
 
         if (!Regex.IsMatch(request.TaxNumber, "^[0-9]+$"))
         {
@@ -72,7 +79,7 @@ public class CustomerService : ICustomerService
 
         var taxNumberExists = await _customerRepository.Query()
             .AnyAsync(c =>
-                c.FirmId == currentFirmId &&
+                c.FirmId == context.FirmId &&
                 c.TaxNumber == request.TaxNumber &&
                 c.CustomerId != customerId);
 
@@ -96,8 +103,8 @@ public class CustomerService : ICustomerService
 
     public async Task DeleteAsync(int currentUserId, int customerId)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
-        var customer = await GetOwnedCustomerAsync(currentFirmId, customerId);
+        var context = await GetCallerContextAsync(currentUserId);
+        var customer = await GetOwnedCustomerAsync(context, customerId);
 
         var hasInvoices = await _invoiceRepository.Query().AnyAsync(i => i.CustomerId == customerId);
 
@@ -112,15 +119,20 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerResponse> GetByIdAsync(int currentUserId, int customerId)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
-        var customer = await GetOwnedCustomerAsync(currentFirmId, customerId);
+        var context = await GetCallerContextAsync(currentUserId);
+        var customer = await GetOwnedCustomerAsync(context, customerId);
         return MapToResponse(customer);
     }
 
     public async Task<PagedResult<CustomerResponse>> GetPagedAsync(int currentUserId, PagedRequest request)
     {
-        var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
-        var query = _customerRepository.Query().Where(c => c.FirmId == currentFirmId);
+        var context = await GetCallerContextAsync(currentUserId);
+        var query = _customerRepository.Query().Where(c => c.FirmId == context.FirmId);
+
+        if (!context.CanAccessAllBranches)
+        {
+            query = query.Where(c => c.BranchId == context.BranchId);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
@@ -153,16 +165,55 @@ public class CustomerService : ICustomerService
         };
     }
 
-    private async Task<int> GetCurrentFirmIdAsync(int currentUserId)
+    private async Task<UserPermissionContext> GetCallerContextAsync(int currentUserId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        return context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+
+        if (context.FirmId is null)
+        {
+            throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+        }
+
+        return context;
     }
 
-    private async Task<Customer> GetOwnedCustomerAsync(int currentFirmId, int customerId)
+    private async Task<int?> ResolveBranchIdForCreateAsync(
+        UserPermissionContext context, int currentFirmId, int? requestedBranchId)
     {
-        var customer = await _customerRepository.Query()
-            .FirstOrDefaultAsync(c => c.CustomerId == customerId && c.FirmId == currentFirmId);
+        if (!context.CanAccessAllBranches)
+        {
+            return context.BranchId;
+        }
+
+        if (requestedBranchId is null)
+        {
+            return null;
+        }
+
+        var branchExists = await _branchRepository.Query()
+            .AnyAsync(b => b.BranchId == requestedBranchId && b.FirmId == currentFirmId);
+
+        if (!branchExists)
+        {
+            throw new NotFoundException(
+                ErrorCodes.BranchNotFound,
+                new Dictionary<string, string> { ["branchId"] = requestedBranchId.Value.ToString() });
+        }
+
+        return requestedBranchId;
+    }
+
+    private async Task<Customer> GetOwnedCustomerAsync(UserPermissionContext context, int customerId)
+    {
+        var query = _customerRepository.Query()
+            .Where(c => c.CustomerId == customerId && c.FirmId == context.FirmId);
+
+        if (!context.CanAccessAllBranches)
+        {
+            query = query.Where(c => c.BranchId == context.BranchId);
+        }
+
+        var customer = await query.FirstOrDefaultAsync();
 
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,
@@ -178,6 +229,7 @@ public class CustomerService : ICustomerService
             Title = customer.Title,
             Address = customer.Address,
             Email = customer.Email,
+            BranchId = customer.BranchId,
             CreatedDate = customer.CreatedDate,
             UpdatedDate = customer.UpdatedDate
         };

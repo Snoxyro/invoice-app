@@ -7,4 +7,5 @@ public class ProfileUpdateRequest
     public List<int> VatRateIds { get; set; } = new();
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
+    public bool CanAccessAllBranches { get; set; }
 }

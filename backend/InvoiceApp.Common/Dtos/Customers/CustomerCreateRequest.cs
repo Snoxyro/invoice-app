@@ -6,4 +6,5 @@ public class CustomerCreateRequest
     public string Title { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public int? BranchId { get; set; }
 }

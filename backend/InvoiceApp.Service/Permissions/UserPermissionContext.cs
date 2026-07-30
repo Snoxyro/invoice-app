@@ -7,4 +7,5 @@ public class UserPermissionContext : PermissionDefinition
     public int? ProfileId { get; set; }
     public string? ProfileName { get; set; }
     public bool IsSystemProfile { get; set; }
+    public int? BranchId { get; set; }
 }

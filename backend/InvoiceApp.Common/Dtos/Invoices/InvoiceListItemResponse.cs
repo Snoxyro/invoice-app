@@ -10,6 +10,7 @@ public class InvoiceListItemResponse
     public decimal GrandTotal { get; set; }
     public int CustomerId { get; set; }
     public string CustomerTitle { get; set; } = string.Empty;
+    public int? BranchId { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
 }

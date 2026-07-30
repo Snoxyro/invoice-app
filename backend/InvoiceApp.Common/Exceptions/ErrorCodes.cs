@@ -33,5 +33,8 @@ public static class ErrorCodes
     public const string ReadPermissionRequiredForMutation = "READ_PERMISSION_REQUIRED_FOR_MUTATION";
     public const string InvoiceRangeInvalid = "INVOICE_RANGE_INVALID";
     public const string LastFullPermissionUserCannotBeRemoved = "LAST_FULL_PERMISSION_USER_CANNOT_BE_REMOVED";
+    public const string BranchNotFound = "BRANCH_NOT_FOUND";
+    public const string BranchHasRecordsCannotDelete = "BRANCH_HAS_RECORDS_CANNOT_DELETE";
+    public const string BranchNameAlreadyExists = "BRANCH_NAME_ALREADY_EXISTS";
     public const string UnexpectedError = "UNEXPECTED_ERROR";
 }

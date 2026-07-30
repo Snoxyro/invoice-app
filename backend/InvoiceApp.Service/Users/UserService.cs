@@ -14,17 +14,20 @@ public class UserService : IUserService
 {
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Profile> _profileRepository;
+    private readonly IRepository<Branch> _branchRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IPermissionService _permissionService;
 
     public UserService(
         IRepository<User> userRepository,
         IRepository<Profile> profileRepository,
+        IRepository<Branch> branchRepository,
         IPasswordHasher passwordHasher,
         IPermissionService permissionService)
     {
         _userRepository = userRepository;
         _profileRepository = profileRepository;
+        _branchRepository = branchRepository;
         _passwordHasher = passwordHasher;
         _permissionService = permissionService;
     }
@@ -60,13 +63,16 @@ public class UserService : IUserService
             throw new BusinessRuleException(ErrorCodes.CannotGrantBeyondOwnPermissions);
         }
 
+        var branchId = await ResolveBranchIdForCreateAsync(callerContext, currentFirmId, request.BranchId);
+
         var user = new User
         {
             UserName = request.UserName,
             PasswordHash = _passwordHasher.HashPassword(request.Password),
             Role = UserRole.FirmUser,
             FirmId = currentFirmId,
-            ProfileId = request.ProfileId
+            ProfileId = request.ProfileId,
+            BranchId = branchId
         };
 
         await _userRepository.AddAsync(user);
@@ -85,15 +91,7 @@ public class UserService : IUserService
         var callerContext = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = callerContext.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
-        var user = await _userRepository.Query()
-            .FirstOrDefaultAsync(u => u.UserId == userId && u.FirmId == currentFirmId);
-
-        if (user is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.UserNotFound,
-                new Dictionary<string, string> { ["userId"] = userId.ToString() });
-        }
+        var user = await GetOwnedUserAsync(callerContext, userId);
 
         if (user.ProfileId is not null)
         {
@@ -169,17 +167,7 @@ public class UserService : IUserService
         }
 
         var callerContext = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = callerContext.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-
-        var user = await _userRepository.Query()
-            .FirstOrDefaultAsync(u => u.UserId == userId && u.FirmId == currentFirmId);
-
-        if (user is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.UserNotFound,
-                new Dictionary<string, string> { ["userId"] = userId.ToString() });
-        }
+        var user = await GetOwnedUserAsync(callerContext, userId);
 
         if (user.ProfileId is not null)
         {
@@ -210,18 +198,7 @@ public class UserService : IUserService
     public async Task<UserResponse> GetByIdAsync(int currentUserId, int userId)
     {
         var callerContext = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = callerContext.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
-
-        var user = await _userRepository.Query()
-            .Include(u => u.Profile)
-            .FirstOrDefaultAsync(u => u.UserId == userId && u.FirmId == currentFirmId);
-
-        if (user is null)
-        {
-            throw new NotFoundException(
-                ErrorCodes.UserNotFound,
-                new Dictionary<string, string> { ["userId"] = userId.ToString() });
-        }
+        var user = await GetOwnedUserAsync(callerContext, userId, includeProfile: true);
 
         return MapToResponse(user, user.Profile?.Name);
     }
@@ -234,6 +211,11 @@ public class UserService : IUserService
         var query = _userRepository.Query()
             .Include(u => u.Profile)
             .Where(u => u.FirmId == currentFirmId);
+
+        if (!callerContext.CanAccessAllBranches)
+        {
+            query = query.Where(u => u.BranchId == callerContext.BranchId);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
@@ -264,6 +246,58 @@ public class UserService : IUserService
         };
     }
 
+    private async Task<int?> ResolveBranchIdForCreateAsync(
+        UserPermissionContext callerContext, int currentFirmId, int? requestedBranchId)
+    {
+        if (!callerContext.CanAccessAllBranches)
+        {
+            return callerContext.BranchId;
+        }
+
+        if (requestedBranchId is not null)
+        {
+            var branchExists = await _branchRepository.Query()
+                .AnyAsync(b => b.BranchId == requestedBranchId && b.FirmId == currentFirmId);
+
+            if (!branchExists)
+            {
+                throw new NotFoundException(
+                    ErrorCodes.BranchNotFound,
+                    new Dictionary<string, string> { ["branchId"] = requestedBranchId.Value.ToString() });
+            }
+
+            return requestedBranchId;
+        }
+
+        var headquarters = await _branchRepository.Query()
+            .FirstOrDefaultAsync(b => b.FirmId == currentFirmId && b.IsHeadquarters);
+
+        return headquarters?.BranchId;
+    }
+
+    private async Task<User> GetOwnedUserAsync(UserPermissionContext callerContext, int userId, bool includeProfile = false)
+    {
+        var currentFirmId = callerContext.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+
+        var baseQuery = _userRepository.Query().Where(u => u.UserId == userId && u.FirmId == currentFirmId);
+
+        if (includeProfile)
+        {
+            baseQuery = baseQuery.Include(u => u.Profile);
+        }
+
+        if (!callerContext.CanAccessAllBranches)
+        {
+            baseQuery = baseQuery.Where(u => u.BranchId == callerContext.BranchId);
+        }
+
+        var user = await baseQuery.FirstOrDefaultAsync();
+
+        return user ?? throw new NotFoundException(
+            ErrorCodes.UserNotFound,
+            new Dictionary<string, string> { ["userId"] = userId.ToString() });
+    }
+
     private static UserResponse MapToResponse(User user, string? profileName)
     {
         return new UserResponse
@@ -273,6 +307,7 @@ public class UserService : IUserService
             Role = user.Role,
             ProfileId = user.ProfileId,
             ProfileName = profileName,
+            BranchId = user.BranchId,
             CreatedDate = user.CreatedDate,
             UpdatedDate = user.UpdatedDate
         };

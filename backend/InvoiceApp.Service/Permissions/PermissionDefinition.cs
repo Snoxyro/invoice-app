@@ -9,6 +9,7 @@ public class PermissionDefinition
     public HashSet<int> VatRateIds { get; set; } = new();
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
+    public bool CanAccessAllBranches { get; set; }
 
     public bool Has(PermissionResource resource, PermissionAction action) => Permissions.Contains((resource, action));
 
@@ -16,7 +17,8 @@ public class PermissionDefinition
     {
         return PermissionIds.All(other.PermissionIds.Contains)
             && VatRateIds.All(other.VatRateIds.Contains)
-            && IsRangeWithin(other);
+            && IsRangeWithin(other)
+            && IsBranchAccessWithin(other);
     }
 
     private bool IsRangeWithin(PermissionDefinition other)
@@ -28,5 +30,10 @@ public class PermissionDefinition
             || (MaxInvoiceAmount is not null && MaxInvoiceAmount <= other.MaxInvoiceAmount);
 
         return minOk && maxOk;
+    }
+
+    private bool IsBranchAccessWithin(PermissionDefinition other)
+    {
+        return !CanAccessAllBranches || other.CanAccessAllBranches;
     }
 }

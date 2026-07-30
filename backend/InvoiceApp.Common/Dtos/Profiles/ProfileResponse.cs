@@ -7,6 +7,7 @@ public class ProfileResponse
     public bool IsSystem { get; set; }
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
+    public bool CanAccessAllBranches { get; set; }
     public List<int> PermissionIds { get; set; } = new();
     public List<int> VatRateIds { get; set; } = new();
     public DateTime CreatedDate { get; set; }
