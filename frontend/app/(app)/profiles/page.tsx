@@ -19,6 +19,7 @@ interface ProfileResponse {
   isSystem: boolean;
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
+  canAccessAllBranches: boolean;
   permissionIds: number[];
   vatRateIds: number[];
   createdDate: string;
@@ -60,6 +61,11 @@ export default function ProfilesPage() {
           {p.isSystem && (
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {t("systemBadge")}
+            </span>
+          )}
+          {p.canAccessAllBranches && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              {t("allBranchesBadge")}
             </span>
           )}
         </span>

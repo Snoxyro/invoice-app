@@ -13,8 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/apiErrorMessage";
+import { usePermissions } from "@/contexts/PermissionContext";
 
 interface CustomerResponse {
   customerId: number;
@@ -22,6 +30,8 @@ interface CustomerResponse {
   title: string;
   address: string;
   email: string;
+  branchId: number | null;
+  branchName: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -42,6 +52,7 @@ export function CustomerFormDialog({
   const t = useTranslations("customers");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
+  const { canAccessAllBranches, availableBranches } = usePermissions();
 
   const isEditMode = customer !== null;
 
@@ -49,8 +60,12 @@ export function CustomerFormDialog({
   const [title, setTitle] = useState("");
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
+  const [branchId, setBranchId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const defaultBranchId =
+    availableBranches.find((b) => b.isHeadquarters)?.branchId ?? availableBranches[0]?.branchId ?? null;
 
   useEffect(() => {
     if (open) {
@@ -58,16 +73,23 @@ export function CustomerFormDialog({
       setTitle(customer?.title ?? "");
       setAddress(customer?.address ?? "");
       setEmail(customer?.email ?? "");
+      setBranchId(customer ? (customer.branchId ?? null) : defaultBranchId);
       setError(null);
     }
-  }, [open, customer]);
+  }, [open, customer, defaultBranchId]);
+
+  function handleBranchChange(value: string | null) {
+    if (value) {
+      setBranchId(Number(value));
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    const payload = { taxNumber, title, address, email };
+    const payload = { taxNumber, title, address, email, branchId };
 
     try {
       let result: CustomerResponse;
@@ -152,6 +174,31 @@ export function CustomerFormDialog({
               required
             />
           </div>
+
+          {canAccessAllBranches && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="branch-select">{t("columnBranch")}</Label>
+              <Select
+                value={branchId !== null ? String(branchId) : null}
+                onValueChange={handleBranchChange}
+              >
+                <SelectTrigger id="branch-select" className="w-full">
+                  <SelectValue>
+                    {(value: string | null) =>
+                      availableBranches.find((b) => String(b.branchId) === value)?.name ?? ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {availableBranches.map((b) => (
+                    <SelectItem key={b.branchId} value={String(b.branchId)}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

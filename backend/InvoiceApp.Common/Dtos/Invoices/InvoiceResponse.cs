@@ -13,6 +13,7 @@ public class InvoiceResponse
     public int CustomerId { get; set; }
     public string CustomerTitle { get; set; } = string.Empty;
     public int? BranchId { get; set; }
+    public string? BranchName { get; set; }
     public int InvoiceSeriesId { get; set; }
     public InvoiceStatus Status { get; set; }
     public string? GibStatusCode { get; set; }

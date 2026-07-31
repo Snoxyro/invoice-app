@@ -9,6 +9,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -50,6 +51,7 @@ interface PagedTableProps<T> {
   renderExpandedRow?: (item: T) => ReactNode;
   emptyMessage?: string;
   filters?: ReactNode;
+  footer?: ReactNode;
 }
 
 export function PagedTable<T>({
@@ -72,6 +74,7 @@ export function PagedTable<T>({
   renderExpandedRow,
   emptyMessage,
   filters,
+  footer,
 }: PagedTableProps<T>) {
   const t = useTranslations("table");
   const columnCount = columns.length + (renderExpandedRow ? 1 : 0);
@@ -168,6 +171,7 @@ export function PagedTable<T>({
                 />
               ))}
           </TableBody>
+          {footer && !isLoading && !error && <TableFooter>{footer}</TableFooter>}
         </Table>
       </div>
 

@@ -8,6 +8,7 @@ public class CustomerResponse
     public string Address { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public int? BranchId { get; set; }
+    public string? BranchName { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
 }

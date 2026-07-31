@@ -13,7 +13,10 @@ interface UsePagedListOptions {
   extraParams?: Record<string, string | undefined>;
 }
 
-export function usePagedList<T>(endpoint: string, options: UsePagedListOptions = {}) {
+export function usePagedList<T, TResponse extends PagedResult<T> = PagedResult<T>>(
+  endpoint: string,
+  options: UsePagedListOptions = {}
+) {
   const t = useTranslations("table");
   const tErrors = useTranslations("errors");
   const [page, setPage] = useState(1);
@@ -24,7 +27,7 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
   const [sortDirection, setSortDirection] = useState<SortDirection>(
     options.sortDirection ?? "Ascending"
   );
-  const [data, setData] = useState<PagedResult<T> | null>(null);
+  const [data, setData] = useState<TResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +73,7 @@ export function usePagedList<T>(endpoint: string, options: UsePagedListOptions =
     }
 
     try {
-      const result = await apiFetch<PagedResult<T>>(`${endpoint}?${query.toString()}`);
+      const result = await apiFetch<TResponse>(`${endpoint}?${query.toString()}`);
       setData(result);
     } catch (err) {
       setError(getApiErrorMessage(err, tErrors, t("loadError")));

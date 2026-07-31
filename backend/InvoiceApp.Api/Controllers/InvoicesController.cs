@@ -44,6 +44,30 @@ public class InvoicesController : ControllerBase
         return Content(html, "text/html");
     }
 
+    [HttpGet("{id:int}/xml")]
+    [RequirePermission(PermissionResource.Invoices, PermissionAction.Read)]
+    public async Task<IActionResult> DownloadXml(int id)
+    {
+        var invoice = await _invoiceService.GetByIdAsync(User.GetUserId(), id);
+        var xmlBytes = await _invoiceService.GetPreviewXmlAsync(User.GetUserId(), id);
+        return File(xmlBytes, "application/xml", BuildFileName(invoice.InvoiceNumber, id, "xml"));
+    }
+
+    [HttpGet("{id:int}/pdf")]
+    [RequirePermission(PermissionResource.Invoices, PermissionAction.Read)]
+    public async Task<IActionResult> DownloadPdf(int id)
+    {
+        var invoice = await _invoiceService.GetByIdAsync(User.GetUserId(), id);
+        var pdfBytes = await _invoiceService.GetPreviewPdfAsync(User.GetUserId(), id);
+        return File(pdfBytes, "application/pdf", BuildFileName(invoice.InvoiceNumber, id, "pdf"));
+    }
+
+    private static string BuildFileName(string? invoiceNumber, int invoiceId, string extension)
+    {
+        var baseName = string.IsNullOrWhiteSpace(invoiceNumber) ? $"taslak-{invoiceId}" : invoiceNumber;
+        return $"{baseName}.{extension}";
+    }
+
     [HttpPost]
     [RequirePermission(PermissionResource.Invoices, PermissionAction.Create)]
     public async Task<ActionResult<InvoiceResponse>> Create(InvoiceCreateRequest request)

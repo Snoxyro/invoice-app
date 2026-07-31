@@ -18,7 +18,7 @@ interface InvoiceLineResponse {
 
 interface InvoiceDetailResponse {
   invoiceId: number;
-  invoiceNumber: string;
+  invoiceNumber: string | null;
   subtotal: number;
   vatTotal: number;
   grandTotal: number;

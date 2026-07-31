@@ -78,7 +78,9 @@ public class UserService : IUserService
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        return MapToResponse(user, targetProfile.Name);
+        var branchName = await GetBranchNameAsync(branchId);
+
+        return MapToResponse(user, targetProfile.Name, branchName);
     }
 
     public async Task<UserResponse> UpdateAsync(int currentUserId, int userId, UserUpdateRequest request)
@@ -147,6 +149,7 @@ public class UserService : IUserService
 
         user.UserName = request.UserName;
         user.ProfileId = request.ProfileId;
+        user.BranchId = await ResolveBranchIdForUpdateAsync(callerContext, currentFirmId, user.BranchId, request.BranchId);
 
         if (!string.IsNullOrWhiteSpace(request.NewPassword))
         {
@@ -156,7 +159,9 @@ public class UserService : IUserService
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
 
-        return MapToResponse(user, targetProfile.Name);
+        var branchName = await GetBranchNameAsync(user.BranchId);
+
+        return MapToResponse(user, targetProfile.Name, branchName);
     }
 
     public async Task DeleteAsync(int currentUserId, int userId)
@@ -200,7 +205,7 @@ public class UserService : IUserService
         var callerContext = await _permissionService.GetUserContextAsync(currentUserId);
         var user = await GetOwnedUserAsync(callerContext, userId, includeProfile: true);
 
-        return MapToResponse(user, user.Profile?.Name);
+        return MapToResponse(user, user.Profile?.Name, user.Branch?.Name);
     }
 
     public async Task<PagedResult<UserResponse>> GetPagedAsync(int currentUserId, PagedRequest request)
@@ -210,6 +215,7 @@ public class UserService : IUserService
 
         var query = _userRepository.Query()
             .Include(u => u.Profile)
+            .Include(u => u.Branch)
             .Where(u => u.FirmId == currentFirmId);
 
         if (!callerContext.CanAccessAllBranches)
@@ -230,6 +236,9 @@ public class UserService : IUserService
             "profilename" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(u => u.Profile!.Name)
                 : query.OrderBy(u => u.Profile!.Name),
+            "branchname" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(u => u.Branch!.Name)
+                : query.OrderBy(u => u.Branch!.Name),
             _ => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(u => u.CreatedDate)
                 : query.OrderBy(u => u.CreatedDate)
@@ -239,7 +248,7 @@ public class UserService : IUserService
 
         return new PagedResult<UserResponse>
         {
-            Items = pagedUsers.Items.Select(u => MapToResponse(u, u.Profile?.Name)).ToList(),
+            Items = pagedUsers.Items.Select(u => MapToResponse(u, u.Profile?.Name, u.Branch?.Name)).ToList(),
             TotalCount = pagedUsers.TotalCount,
             Page = pagedUsers.Page,
             PageSize = pagedUsers.PageSize
@@ -275,11 +284,52 @@ public class UserService : IUserService
         return headquarters?.BranchId;
     }
 
+    private async Task<int?> ResolveBranchIdForUpdateAsync(
+        UserPermissionContext callerContext, int currentFirmId, int? currentBranchId, int? requestedBranchId)
+    {
+        if (!callerContext.CanAccessAllBranches)
+        {
+            return currentBranchId;
+        }
+
+        if (requestedBranchId is null)
+        {
+            return currentBranchId;
+        }
+
+        var branchExists = await _branchRepository.Query()
+            .AnyAsync(b => b.BranchId == requestedBranchId && b.FirmId == currentFirmId);
+
+        if (!branchExists)
+        {
+            throw new NotFoundException(
+                ErrorCodes.BranchNotFound,
+                new Dictionary<string, string> { ["branchId"] = requestedBranchId.Value.ToString() });
+        }
+
+        return requestedBranchId;
+    }
+
+    private async Task<string?> GetBranchNameAsync(int? branchId)
+    {
+        if (branchId is null)
+        {
+            return null;
+        }
+
+        return await _branchRepository.Query()
+            .Where(b => b.BranchId == branchId)
+            .Select(b => b.Name)
+            .FirstOrDefaultAsync();
+    }
+
     private async Task<User> GetOwnedUserAsync(UserPermissionContext callerContext, int userId, bool includeProfile = false)
     {
         var currentFirmId = callerContext.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
-        var baseQuery = _userRepository.Query().Where(u => u.UserId == userId && u.FirmId == currentFirmId);
+        var baseQuery = _userRepository.Query()
+            .Include(u => u.Branch)
+            .Where(u => u.UserId == userId && u.FirmId == currentFirmId);
 
         if (includeProfile)
         {
@@ -298,7 +348,7 @@ public class UserService : IUserService
             new Dictionary<string, string> { ["userId"] = userId.ToString() });
     }
 
-    private static UserResponse MapToResponse(User user, string? profileName)
+    private static UserResponse MapToResponse(User user, string? profileName, string? branchName)
     {
         return new UserResponse
         {
@@ -308,6 +358,7 @@ public class UserService : IUserService
             ProfileId = user.ProfileId,
             ProfileName = profileName,
             BranchId = user.BranchId,
+            BranchName = branchName,
             CreatedDate = user.CreatedDate,
             UpdatedDate = user.UpdatedDate
         };

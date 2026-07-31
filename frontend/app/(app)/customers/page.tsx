@@ -22,6 +22,8 @@ interface CustomerResponse {
   title: string;
   address: string;
   email: string;
+  branchId: number | null;
+  branchName: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -81,6 +83,12 @@ export default function CustomersPage() {
       key: "email",
       header: t("columnEmail"),
       render: (c) => c.email,
+    },
+    {
+      key: "branchName",
+      header: t("columnBranch"),
+      sortKey: "branchname",
+      render: (c) => c.branchName ?? "—",
     },
     {
       key: "createdDate",

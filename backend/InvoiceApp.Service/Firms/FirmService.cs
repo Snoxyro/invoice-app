@@ -7,6 +7,7 @@ using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
 using InvoiceApp.Service.Shared;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace InvoiceApp.Service.Firms;
 
@@ -67,10 +68,12 @@ public class FirmService : IFirmService
                 new Dictionary<string, string> { ["userName"] = request.FirstUserName });
         }
 
+        ValidateVkn(request.Vkn);
+
         var allPermissions = await _permissionRepository.Query().ToListAsync();
         var allVatRates = await _vatRateRepository.Query().ToListAsync();
 
-        var firm = new Firm { Name = request.FirmName };
+        var firm = new Firm { Name = request.FirmName, Vkn = request.Vkn };
 
         var headquarters = new Branch
         {
@@ -143,7 +146,10 @@ public class FirmService : IFirmService
                 new Dictionary<string, string> { ["firmName"] = request.Name });
         }
 
+        ValidateVkn(request.Vkn);
+
         firm.Name = request.Name;
+        firm.Vkn = request.Vkn;
 
         _firmRepository.Update(firm);
         await _firmRepository.SaveChangesAsync();
@@ -231,12 +237,21 @@ public class FirmService : IFirmService
         };
     }
 
+    private static void ValidateVkn(string? vkn)
+    {
+        if (!string.IsNullOrWhiteSpace(vkn) && !Regex.IsMatch(vkn, "^[0-9]{1,10}$"))
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidTaxNumberFormat);
+        }
+    }
+
     private static FirmResponse MapToResponse(Firm firm)
     {
         return new FirmResponse
         {
             FirmId = firm.FirmId,
             Name = firm.Name,
+            Vkn = firm.Vkn,
             CreatedDate = firm.CreatedDate,
             UpdatedDate = firm.UpdatedDate
         };

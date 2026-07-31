@@ -64,7 +64,9 @@ public class CustomerService : ICustomerService
         await _customerRepository.AddAsync(customer);
         await _customerRepository.SaveChangesAsync();
 
-        return MapToResponse(customer);
+        var branchName = await GetBranchNameAsync(branchId);
+
+        return MapToResponse(customer, branchName);
     }
 
     public async Task<CustomerResponse> UpdateAsync(int currentUserId, int customerId, CustomerUpdateRequest request)
@@ -94,11 +96,15 @@ public class CustomerService : ICustomerService
         customer.Title = request.Title;
         customer.Address = request.Address;
         customer.Email = request.Email;
+        customer.BranchId = await ResolveBranchIdForUpdateAsync(
+            context, context.FirmId!.Value, customer.BranchId, request.BranchId);
 
         _customerRepository.Update(customer);
         await _customerRepository.SaveChangesAsync();
 
-        return MapToResponse(customer);
+        var branchName = await GetBranchNameAsync(customer.BranchId);
+
+        return MapToResponse(customer, branchName);
     }
 
     public async Task DeleteAsync(int currentUserId, int customerId)
@@ -121,13 +127,15 @@ public class CustomerService : ICustomerService
     {
         var context = await GetCallerContextAsync(currentUserId);
         var customer = await GetOwnedCustomerAsync(context, customerId);
-        return MapToResponse(customer);
+        return MapToResponse(customer, customer.Branch?.Name);
     }
 
     public async Task<PagedResult<CustomerResponse>> GetPagedAsync(int currentUserId, PagedRequest request)
     {
         var context = await GetCallerContextAsync(currentUserId);
-        var query = _customerRepository.Query().Where(c => c.FirmId == context.FirmId);
+        var query = _customerRepository.Query()
+            .Include(c => c.Branch)
+            .Where(c => c.FirmId == context.FirmId);
 
         if (!context.CanAccessAllBranches)
         {
@@ -149,6 +157,9 @@ public class CustomerService : ICustomerService
             "updateddate" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(c => c.UpdatedDate)
                 : query.OrderBy(c => c.UpdatedDate),
+            "branchname" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(c => c.Branch!.Name)
+                : query.OrderBy(c => c.Branch!.Name),
             _ => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(c => c.CreatedDate)
                 : query.OrderBy(c => c.CreatedDate)
@@ -158,7 +169,7 @@ public class CustomerService : ICustomerService
 
         return new PagedResult<CustomerResponse>
         {
-            Items = pagedCustomers.Items.Select(MapToResponse).ToList(),
+            Items = pagedCustomers.Items.Select(c => MapToResponse(c, c.Branch?.Name)).ToList(),
             TotalCount = pagedCustomers.TotalCount,
             Page = pagedCustomers.Page,
             PageSize = pagedCustomers.PageSize
@@ -203,9 +214,49 @@ public class CustomerService : ICustomerService
         return requestedBranchId;
     }
 
+    private async Task<int?> ResolveBranchIdForUpdateAsync(
+        UserPermissionContext context, int currentFirmId, int? currentBranchId, int? requestedBranchId)
+    {
+        if (!context.CanAccessAllBranches)
+        {
+            return currentBranchId;
+        }
+
+        if (requestedBranchId is null)
+        {
+            return currentBranchId;
+        }
+
+        var branchExists = await _branchRepository.Query()
+            .AnyAsync(b => b.BranchId == requestedBranchId && b.FirmId == currentFirmId);
+
+        if (!branchExists)
+        {
+            throw new NotFoundException(
+                ErrorCodes.BranchNotFound,
+                new Dictionary<string, string> { ["branchId"] = requestedBranchId.Value.ToString() });
+        }
+
+        return requestedBranchId;
+    }
+
+    private async Task<string?> GetBranchNameAsync(int? branchId)
+    {
+        if (branchId is null)
+        {
+            return null;
+        }
+
+        return await _branchRepository.Query()
+            .Where(b => b.BranchId == branchId)
+            .Select(b => b.Name)
+            .FirstOrDefaultAsync();
+    }
+
     private async Task<Customer> GetOwnedCustomerAsync(UserPermissionContext context, int customerId)
     {
         var query = _customerRepository.Query()
+            .Include(c => c.Branch)
             .Where(c => c.CustomerId == customerId && c.FirmId == context.FirmId);
 
         if (!context.CanAccessAllBranches)
@@ -220,7 +271,7 @@ public class CustomerService : ICustomerService
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
     }
 
-    private static CustomerResponse MapToResponse(Customer customer)
+    private static CustomerResponse MapToResponse(Customer customer, string? branchName)
     {
         return new CustomerResponse
         {
@@ -230,6 +281,7 @@ public class CustomerService : ICustomerService
             Address = customer.Address,
             Email = customer.Email,
             BranchId = customer.BranchId,
+            BranchName = branchName,
             CreatedDate = customer.CreatedDate,
             UpdatedDate = customer.UpdatedDate
         };

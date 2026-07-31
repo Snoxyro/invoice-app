@@ -19,8 +19,10 @@ public class InvoiceService : IInvoiceService
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
+    private readonly IRepository<Branch> _branchRepository;
     private readonly IPermissionService _permissionService;
     private readonly IEInvoiceTransformer _eInvoiceTransformer;
+    private readonly IPdfRenderer _pdfRenderer;
     private readonly AppDbContext _dbContext;
 
     public InvoiceService(
@@ -28,16 +30,20 @@ public class InvoiceService : IInvoiceService
         IRepository<Customer> customerRepository,
         IRepository<VatRate> vatRateRepository,
         IRepository<InvoiceSeries> invoiceSeriesRepository,
+        IRepository<Branch> branchRepository,
         IPermissionService permissionService,
         IEInvoiceTransformer eInvoiceTransformer,
+        IPdfRenderer pdfRenderer,
         AppDbContext dbContext)
     {
         _invoiceRepository = invoiceRepository;
         _customerRepository = customerRepository;
         _vatRateRepository = vatRateRepository;
         _invoiceSeriesRepository = invoiceSeriesRepository;
+        _branchRepository = branchRepository;
         _permissionService = permissionService;
         _eInvoiceTransformer = eInvoiceTransformer;
+        _pdfRenderer = pdfRenderer;
         _dbContext = dbContext;
     }
 
@@ -76,14 +82,16 @@ public class InvoiceService : IInvoiceService
         await _invoiceRepository.AddAsync(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
-        return MapToResponse(invoice, customer.Title, vatRates);
+        var branchName = await GetBranchNameAsync(currentBranchId);
+
+        return MapToResponse(invoice, customer.Title, vatRates, branchName);
     }
 
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
 
-        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true);
+        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeBranch: true);
 
         if (invoice.Status == InvoiceStatus.Sent)
         {
@@ -118,13 +126,14 @@ public class InvoiceService : IInvoiceService
         _invoiceRepository.Update(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
-        return MapToResponse(invoice, customer.Title, vatRates);
+        return MapToResponse(invoice, customer.Title, vatRates, invoice.Branch?.Name);
     }
 
     public async Task<InvoiceResponse> SendAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeCustomer: true);
+        var invoice = await GetOwnedInvoiceAsync(
+            context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
 
         if (invoice.Status == InvoiceStatus.Sent)
         {
@@ -178,7 +187,7 @@ public class InvoiceService : IInvoiceService
             }
         });
 
-        return MapToResponse(invoice, invoice.Customer.Title, vatRates);
+        return MapToResponse(invoice, invoice.Customer.Title, vatRates, invoice.Branch?.Name);
     }
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
@@ -196,17 +205,38 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceResponse> GetByIdAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeCustomer: true);
+        var invoice = await GetOwnedInvoiceAsync(
+            context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
 
         var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
         var vatRates = await _vatRateRepository.Query()
             .Where(v => vatRateIds.Contains(v.VatRateId))
             .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
 
-        return MapToResponse(invoice, invoice.Customer.Title, vatRates);
+        return MapToResponse(invoice, invoice.Customer.Title, vatRates, invoice.Branch?.Name);
     }
 
     public async Task<string> GetPreviewHtmlAsync(int currentUserId, int invoiceId)
+    {
+        var xmlBytes = await BuildPreviewXmlAsync(currentUserId, invoiceId);
+
+        return _eInvoiceTransformer.TransformToHtml(xmlBytes);
+    }
+
+    public async Task<byte[]> GetPreviewXmlAsync(int currentUserId, int invoiceId)
+    {
+        return await BuildPreviewXmlAsync(currentUserId, invoiceId);
+    }
+
+    public async Task<byte[]> GetPreviewPdfAsync(int currentUserId, int invoiceId)
+    {
+        var xmlBytes = await BuildPreviewXmlAsync(currentUserId, invoiceId);
+        var html = _eInvoiceTransformer.TransformToHtml(xmlBytes);
+
+        return await _pdfRenderer.RenderAsync(html);
+    }
+
+    private async Task<byte[]> BuildPreviewXmlAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var invoice = await GetOwnedInvoiceAsync(
@@ -217,9 +247,7 @@ public class InvoiceService : IInvoiceService
             .Where(v => vatRateIds.Contains(v.VatRateId))
             .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
 
-        var xmlBytes = EInvoiceXmlBuilder.Build(invoice, vatRates);
-
-        return _eInvoiceTransformer.TransformToHtml(xmlBytes);
+        return EInvoiceXmlBuilder.Build(invoice, vatRates);
     }
 
     public async Task<InvoiceListResponse> GetPagedAsync(int currentUserId, InvoiceListRequest request)
@@ -229,6 +257,7 @@ public class InvoiceService : IInvoiceService
 
         var query = _invoiceRepository.Query()
             .Include(i => i.Customer)
+            .Include(i => i.Branch)
             .Where(i => i.FirmId == currentFirmId);
 
         if (!context.CanAccessAllBranches)
@@ -274,6 +303,9 @@ public class InvoiceService : IInvoiceService
             "customer" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(i => i.Customer.Title)
                 : query.OrderBy(i => i.Customer.Title),
+            "branchname" => request.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(i => i.Branch!.Name)
+                : query.OrderBy(i => i.Branch!.Name),
             "createddate" => request.SortDirection == SortDirection.Descending
                 ? query.OrderByDescending(i => i.CreatedDate)
                 : query.OrderBy(i => i.CreatedDate),
@@ -300,6 +332,7 @@ public class InvoiceService : IInvoiceService
                 CustomerId = i.CustomerId,
                 CustomerTitle = i.Customer.Title,
                 BranchId = i.BranchId,
+                BranchName = i.Branch != null ? i.Branch.Name : null,
                 Status = i.Status,
                 CreatedDate = i.CreatedDate,
                 UpdatedDate = i.UpdatedDate
@@ -326,6 +359,61 @@ public class InvoiceService : IInvoiceService
         return customer ?? throw new NotFoundException(
             ErrorCodes.CustomerNotFound,
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
+    }
+
+    private async Task<Dictionary<int, decimal>> GetVatRatesForLinesAsync(List<InvoiceLineRequest> lines)
+    {
+        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
+
+        var vatRates = await _vatRateRepository.Query()
+            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+
+        if (vatRates.Count != requestedVatRateIds.Count)
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidVatRateSelection);
+        }
+
+        return vatRates;
+    }
+
+    private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
+        List<InvoiceLineRequest> lines, UserPermissionContext context)
+    {
+        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
+
+        var notAllowed = requestedVatRateIds.Where(id => !context.VatRateIds.Contains(id)).ToList();
+
+        if (notAllowed.Count > 0)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.VatRateNotAllowedForProfile,
+                new Dictionary<string, string> { ["vatRateIds"] = string.Join(",", notAllowed) });
+        }
+
+        return await _vatRateRepository.Query()
+            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
+            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+    }
+
+    private async Task<string> AllocateInvoiceNumberAsync(int invoiceSeriesId)
+    {
+        var series = await _dbContext.InvoiceSeries
+            .FromSqlInterpolated($"SELECT * FROM InvoiceSeries WITH (UPDLOCK, ROWLOCK) WHERE InvoiceSeriesId = {invoiceSeriesId}")
+            .SingleAsync();
+
+        var currentYear = DateTime.UtcNow.Year;
+
+        if (series.LastUsedYear != currentYear)
+        {
+            series.LastUsedYear = currentYear;
+            series.NextNumber = 1;
+        }
+
+        var allocatedNumber = series.NextNumber;
+        series.NextNumber++;
+
+        return $"{series.Prefix}{currentYear}{allocatedNumber:D9}";
     }
 
     private async Task<InvoiceSeries> GetUsableSeriesAsync(UserPermissionContext context, int invoiceSeriesId)
@@ -393,59 +481,17 @@ public class InvoiceService : IInvoiceService
             new Dictionary<string, string> { ["invoiceId"] = invoiceId.ToString() });
     }
 
-    private async Task<Dictionary<int, decimal>> GetVatRatesForLinesAsync(List<InvoiceLineRequest> lines)
+    private async Task<string?> GetBranchNameAsync(int? branchId)
     {
-        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
-
-        var vatRates = await _vatRateRepository.Query()
-            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
-
-        if (vatRates.Count != requestedVatRateIds.Count)
+        if (branchId is null)
         {
-            throw new BusinessRuleException(ErrorCodes.InvalidVatRateSelection);
+            return null;
         }
 
-        return vatRates;
-    }
-
-    private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
-        List<InvoiceLineRequest> lines, UserPermissionContext context)
-    {
-        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
-
-        var notAllowed = requestedVatRateIds.Where(id => !context.VatRateIds.Contains(id)).ToList();
-
-        if (notAllowed.Count > 0)
-        {
-            throw new BusinessRuleException(
-                ErrorCodes.VatRateNotAllowedForProfile,
-                new Dictionary<string, string> { ["vatRateIds"] = string.Join(",", notAllowed) });
-        }
-
-        return await _vatRateRepository.Query()
-            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
-    }
-
-    private async Task<string> AllocateInvoiceNumberAsync(int invoiceSeriesId)
-    {
-        var series = await _dbContext.InvoiceSeries
-            .FromSqlInterpolated($"SELECT * FROM InvoiceSeries WITH (UPDLOCK, ROWLOCK) WHERE InvoiceSeriesId = {invoiceSeriesId}")
-            .SingleAsync();
-
-        var currentYear = DateTime.UtcNow.Year;
-
-        if (series.LastUsedYear != currentYear)
-        {
-            series.LastUsedYear = currentYear;
-            series.NextNumber = 1;
-        }
-
-        var allocatedNumber = series.NextNumber;
-        series.NextNumber++;
-
-        return $"{series.Prefix}{currentYear}{allocatedNumber:D9}";
+        return await _branchRepository.Query()
+            .Where(b => b.BranchId == branchId)
+            .Select(b => b.Name)
+            .FirstOrDefaultAsync();
     }
 
     private static void ApplyTotals(Invoice invoice, Dictionary<int, decimal> vatRates)
@@ -484,7 +530,8 @@ public class InvoiceService : IInvoiceService
         }
     }
 
-    private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle, Dictionary<int, decimal> vatRates)
+    private static InvoiceResponse MapToResponse(
+        Invoice invoice, string customerTitle, Dictionary<int, decimal> vatRates, string? branchName)
     {
         return new InvoiceResponse
         {
@@ -497,6 +544,7 @@ public class InvoiceService : IInvoiceService
             CustomerId = invoice.CustomerId,
             CustomerTitle = customerTitle,
             BranchId = invoice.BranchId,
+            BranchName = branchName,
             InvoiceSeriesId = invoice.InvoiceSeriesId,
             Status = invoice.Status,
             GibStatusCode = invoice.GibStatusCode,

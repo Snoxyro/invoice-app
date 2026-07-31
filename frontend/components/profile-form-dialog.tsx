@@ -25,6 +25,7 @@ interface ProfileResponse {
   isSystem: boolean;
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
+  canAccessAllBranches: boolean;
   permissionIds: number[];
   vatRateIds: number[];
   createdDate: string;
@@ -49,7 +50,7 @@ interface ProfileFormDialogProps {
   onSuccess: (profile: ProfileResponse) => void;
 }
 
-const RESOURCE_ORDER: PermissionResource[] = ["Users", "Profiles", "Customers", "Invoices"];
+const RESOURCE_ORDER: PermissionResource[] = ["Users", "Profiles", "Customers", "Invoices", "Branches"];
 const ACTION_ORDER: PermissionActionType[] = ["Create", "Read", "Update", "Delete"];
 
 export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: ProfileFormDialogProps) {
@@ -61,6 +62,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     vatRates: ownVatRates,
     minInvoiceAmount: ownMin,
     maxInvoiceAmount: ownMax,
+    canAccessAllBranches: ownCanAccessAllBranches,
   } = usePermissions();
 
   const isEditMode = profile !== null;
@@ -70,6 +72,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
   const [vatRateIds, setVatRateIds] = useState<Set<number>>(new Set());
   const [minInvoiceAmount, setMinInvoiceAmount] = useState("");
   const [maxInvoiceAmount, setMaxInvoiceAmount] = useState("");
+  const [canAccessAllBranches, setCanAccessAllBranches] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,6 +90,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     setVatRateIds(new Set(profile?.vatRateIds ?? []));
     setMinInvoiceAmount(profile?.minInvoiceAmount != null ? String(profile.minInvoiceAmount) : "");
     setMaxInvoiceAmount(profile?.maxInvoiceAmount != null ? String(profile.maxInvoiceAmount) : "");
+    setCanAccessAllBranches(profile?.canAccessAllBranches ?? false);
     setError(null);
   }, [open, profile]);
 
@@ -201,6 +205,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
       vatRateIds: Array.from(vatRateIds),
       minInvoiceAmount: minInvoiceAmount === "" ? null : Number(minInvoiceAmount),
       maxInvoiceAmount: maxInvoiceAmount === "" ? null : Number(maxInvoiceAmount),
+      canAccessAllBranches,
     };
 
     try {
@@ -238,6 +243,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     Profiles: t("resourceProfiles"),
     Customers: t("resourceCustomers"),
     Invoices: t("resourceInvoices"),
+    Branches: t("resourceBranches"),
   };
 
   const actionLabels: Record<PermissionActionType, string> = {
@@ -310,6 +316,24 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-3">
+            <Label>{t("branchAccessTitle")}</Label>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="canAccessAllBranches"
+                checked={canAccessAllBranches}
+                onCheckedChange={() => setCanAccessAllBranches((prev) => !prev)}
+                disabled={!ownCanAccessAllBranches}
+              />
+              <Label htmlFor="canAccessAllBranches" className="cursor-pointer font-normal">
+                {t("canAccessAllBranchesLabel")}
+              </Label>
+            </div>
+            {!ownCanAccessAllBranches && (
+              <p className="text-xs text-muted-foreground">{t("canAccessAllBranchesDisabledHint")}</p>
             )}
           </div>
 

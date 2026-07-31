@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api";
 interface FirmResponse {
   firmId: number;
   name: string;
+  vkn: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -43,6 +44,11 @@ export default function AdminFirmsPage() {
       header: t("columnFirmName"),
       sortKey: "name",
       render: (f) => f.name,
+    },
+    {
+      key: "vkn",
+      header: t("columnVkn"),
+      render: (f) => f.vkn ?? "—",
     },
     {
       key: "createdDate",

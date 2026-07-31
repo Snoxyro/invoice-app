@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/apiErrorMessage";
+import { usePermissions } from "@/contexts/PermissionContext";
 import type { PagedResult } from "@/lib/paging";
 
 interface UserResponse {
@@ -29,6 +30,8 @@ interface UserResponse {
   userName: string;
   profileId: number | null;
   profileName: string | null;
+  branchId: number | null;
+  branchName: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -49,25 +52,31 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
   const t = useTranslations("users");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
+  const { canAccessAllBranches, availableBranches } = usePermissions();
 
   const isEditMode = user !== null;
 
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [profileId, setProfileId] = useState<number | null>(null);
+  const [branchId, setBranchId] = useState<number | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [isProfilesLoading, setIsProfilesLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const defaultBranchId =
+    availableBranches.find((b) => b.isHeadquarters)?.branchId ?? availableBranches[0]?.branchId ?? null;
+
   useEffect(() => {
     if (open) {
       setUserName(user?.userName ?? "");
       setProfileId(user?.profileId ?? null);
+      setBranchId(user ? (user.branchId ?? null) : defaultBranchId);
       setPassword("");
       setError(null);
     }
-  }, [open, user]);
+  }, [open, user, defaultBranchId]);
 
   useEffect(() => {
     if (!open) {
@@ -105,6 +114,12 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
     }
   }
 
+  function handleBranchChange(value: string | null) {
+    if (value) {
+      setBranchId(Number(value));
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -120,12 +135,13 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             userName,
             profileId,
             newPassword: password ? password : null,
+            branchId,
           }),
         });
       } else {
         result = await apiFetch<UserResponse>("/api/Users", {
           method: "POST",
-          body: JSON.stringify({ userName, password, profileId }),
+          body: JSON.stringify({ userName, password, profileId, branchId }),
         });
       }
 
@@ -203,6 +219,31 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
               </SelectContent>
             </Select>
           </div>
+
+          {canAccessAllBranches && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="branch-select">{t("columnBranch")}</Label>
+              <Select
+                value={branchId !== null ? String(branchId) : null}
+                onValueChange={handleBranchChange}
+              >
+                <SelectTrigger id="branch-select" className="w-full">
+                  <SelectValue>
+                    {(value: string | null) =>
+                      availableBranches.find((b) => String(b.branchId) === value)?.name ?? ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {availableBranches.map((b) => (
+                    <SelectItem key={b.branchId} value={String(b.branchId)}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

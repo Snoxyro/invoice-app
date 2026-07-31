@@ -1,4 +1,5 @@
 using InvoiceApp.Api.Extensions;
+using InvoiceApp.Common.Dtos.Branches;
 using InvoiceApp.Common.Dtos.InvoiceSeries;
 using InvoiceApp.Common.Dtos.Permissions;
 using InvoiceApp.Common.Dtos.VatRates;
@@ -19,15 +20,18 @@ public class MeController : ControllerBase
     private readonly IPermissionService _permissionService;
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
+    private readonly IRepository<Branch> _branchRepository;
 
     public MeController(
         IPermissionService permissionService,
         IRepository<VatRate> vatRateRepository,
-        IRepository<InvoiceSeries> invoiceSeriesRepository)
+        IRepository<InvoiceSeries> invoiceSeriesRepository,
+        IRepository<Branch> branchRepository)
     {
         _permissionService = permissionService;
         _vatRateRepository = vatRateRepository;
         _invoiceSeriesRepository = invoiceSeriesRepository;
+        _branchRepository = branchRepository;
     }
 
     [HttpGet("permissions")]
@@ -46,6 +50,20 @@ public class MeController : ControllerBase
             .Select(s => new InvoiceSeriesOptionResponse { InvoiceSeriesId = s.InvoiceSeriesId, Prefix = s.Prefix })
             .ToListAsync();
 
+        var availableBranches = context.CanAccessAllBranches
+            ? await _branchRepository.Query()
+                .Where(b => b.FirmId == context.FirmId)
+                .OrderByDescending(b => b.IsHeadquarters)
+                .ThenBy(b => b.Name)
+                .Select(b => new BranchOptionResponse
+                {
+                    BranchId = b.BranchId,
+                    Name = b.Name,
+                    IsHeadquarters = b.IsHeadquarters
+                })
+                .ToListAsync()
+            : new List<BranchOptionResponse>();
+
         return Ok(new MyPermissionsResponse
         {
             ProfileId = context.ProfileId,
@@ -55,7 +73,10 @@ public class MeController : ControllerBase
             VatRates = vatRates,
             MinInvoiceAmount = context.MinInvoiceAmount,
             MaxInvoiceAmount = context.MaxInvoiceAmount,
-            AvailableInvoiceSeries = availableSeries
+            CanAccessAllBranches = context.CanAccessAllBranches,
+            BranchId = context.BranchId,
+            AvailableInvoiceSeries = availableSeries,
+            AvailableBranches = availableBranches
         });
     }
 }

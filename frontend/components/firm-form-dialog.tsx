@@ -19,6 +19,7 @@ import { getApiErrorMessage } from "@/lib/apiErrorMessage";
 interface FirmResponse {
   firmId: number;
   name: string;
+  vkn: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -38,6 +39,7 @@ export function FirmFormDialog({ open, onOpenChange, firm, onSuccess }: FirmForm
   const isEditMode = firm !== null;
 
   const [firmName, setFirmName] = useState("");
+  const [vkn, setVkn] = useState("");
   const [firstUserName, setFirstUserName] = useState("");
   const [firstUserPassword, setFirstUserPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +48,7 @@ export function FirmFormDialog({ open, onOpenChange, firm, onSuccess }: FirmForm
   useEffect(() => {
     if (open) {
       setFirmName(firm?.name ?? "");
+      setVkn(firm?.vkn ?? "");
       setFirstUserName("");
       setFirstUserPassword("");
       setError(null);
@@ -63,12 +66,12 @@ export function FirmFormDialog({ open, onOpenChange, firm, onSuccess }: FirmForm
       if (isEditMode) {
         result = await apiFetch<FirmResponse>(`/api/Admin/firms/${firm.firmId}`, {
           method: "PUT",
-          body: JSON.stringify({ name: firmName }),
+          body: JSON.stringify({ name: firmName, vkn: vkn || null }),
         });
       } else {
         result = await apiFetch<FirmResponse>("/api/Admin/firms", {
           method: "POST",
-          body: JSON.stringify({ firmName, firstUserName, firstUserPassword }),
+          body: JSON.stringify({ firmName, firstUserName, firstUserPassword, vkn: vkn || null }),
         });
       }
 
@@ -107,6 +110,18 @@ export function FirmFormDialog({ open, onOpenChange, firm, onSuccess }: FirmForm
               required
               autoFocus
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="vkn">{t("vknLabel")}</Label>
+            <Input
+              id="vkn"
+              value={vkn}
+              onChange={(e) => setVkn(e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
+              maxLength={10}
+            />
+            <p className="text-xs text-muted-foreground">{t("vknHint")}</p>
           </div>
 
           {!isEditMode && (

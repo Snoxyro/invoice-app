@@ -20,6 +20,8 @@ interface UserResponse {
   userName: string;
   profileId: number | null;
   profileName: string | null;
+  branchId: number | null;
+  branchName: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -66,6 +68,12 @@ export default function UsersPage() {
       header: t("columnProfile"),
       sortKey: "profilename",
       render: (u) => u.profileName ?? "—",
+    },
+    {
+      key: "branchName",
+      header: t("columnBranch"),
+      sortKey: "branchname",
+      render: (u) => u.branchName ?? "—",
     },
     {
       key: "createdDate",

@@ -13,6 +13,7 @@ public class InvoiceListItemResponse
     public int CustomerId { get; set; }
     public string CustomerTitle { get; set; } = string.Empty;
     public int? BranchId { get; set; }
+    public string? BranchName { get; set; }
     public InvoiceStatus Status { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }

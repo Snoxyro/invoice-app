@@ -50,13 +50,15 @@ interface InvoiceLineResponse {
 
 interface InvoiceResponse {
   invoiceId: number;
-  invoiceNumber: string;
+  invoiceNumber: string | null;
   invoiceDate: string;
   subtotal: number;
   vatTotal: number;
   grandTotal: number;
   customerId: number;
   customerTitle: string;
+  invoiceSeriesId: number;
+  status: "Draft" | "Sent";
   createdDate: string;
   updatedDate: string | null;
   lines: InvoiceLineResponse[];
@@ -96,7 +98,7 @@ export function InvoiceFormDialog({
   const t = useTranslations("invoices");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
-  const { vatRates, minInvoiceAmount, maxInvoiceAmount } = usePermissions();
+  const { vatRates, minInvoiceAmount, maxInvoiceAmount, availableInvoiceSeries } = usePermissions();
 
   const isEditMode = invoice !== null;
   const keyCounter = useRef(0);
@@ -106,7 +108,7 @@ export function InvoiceFormDialog({
     return String(keyCounter.current);
   }
 
-  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceSeriesId, setInvoiceSeriesId] = useState<number | null>(null);
   const [invoiceDate, setInvoiceDate] = useState("");
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerLabel, setCustomerLabel] = useState("");
@@ -117,6 +119,7 @@ export function InvoiceFormDialog({
 
   const defaultVatRateId = vatRates[0]?.vatRateId ?? null;
   const defaultVatRatePercentage = vatRates[0]?.rate ?? 0;
+  const defaultSeriesId = availableInvoiceSeries[0]?.invoiceSeriesId ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -126,7 +129,7 @@ export function InvoiceFormDialog({
     setError(null);
 
     if (invoice) {
-      setInvoiceNumber(invoice.invoiceNumber);
+      setInvoiceSeriesId(invoice.invoiceSeriesId);
       setInvoiceDate(invoice.invoiceDate.slice(0, 10));
       setCustomerId(invoice.customerId);
       setCustomerLabel(invoice.customerTitle);
@@ -143,7 +146,7 @@ export function InvoiceFormDialog({
       return;
     }
 
-    setInvoiceNumber("");
+    setInvoiceSeriesId(defaultSeriesId);
     setInvoiceDate("");
     setLines([
       {
@@ -163,7 +166,7 @@ export function InvoiceFormDialog({
       setCustomerId(null);
       setCustomerLabel("");
     }
-  }, [open, invoice, lockedCustomer]);
+  }, [open, invoice, lockedCustomer, defaultSeriesId]);
 
   function addLine() {
     setLines((prev) => [
@@ -195,6 +198,12 @@ export function InvoiceFormDialog({
         line.key === key ? { ...line, vatRateId, vatRatePercentage: rate } : line
       )
     );
+  }
+
+  function handleSeriesChange(value: string | null) {
+    if (value) {
+      setInvoiceSeriesId(Number(value));
+    }
   }
 
   function handleCustomerSelect(customer: CustomerResponse) {
@@ -236,11 +245,23 @@ export function InvoiceFormDialog({
     limitHint = t("aboveMaximumHint", { max: maxInvoiceAmount });
   }
 
+  const seriesSelectOptions =
+    invoiceSeriesId !== null && !availableInvoiceSeries.some((s) => s.invoiceSeriesId === invoiceSeriesId)
+      ? [...availableInvoiceSeries, { invoiceSeriesId, prefix: t("unknownSeriesFallback") }]
+      : availableInvoiceSeries;
+
+  const showSeriesSelect = seriesSelectOptions.length > 1;
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     if (customerId === null) {
       setError(t("customerRequiredError"));
+      return;
+    }
+
+    if (invoiceSeriesId === null) {
+      setError(t("seriesRequiredError"));
       return;
     }
 
@@ -254,7 +275,7 @@ export function InvoiceFormDialog({
 
     const payload = {
       customerId,
-      invoiceNumber,
+      invoiceSeriesId,
       invoiceDate,
       lines: lines.map((line) => ({
         itemName: line.itemName,
@@ -297,7 +318,14 @@ export function InvoiceFormDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? t("editTitle") : t("createTitle")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {isEditMode ? t("editTitle") : t("createTitle")}
+              {isEditMode && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                  {t("draftBadge")}
+                </span>
+              )}
+            </DialogTitle>
             <DialogDescription>
               {isEditMode ? t("editDescription") : t("createDescription")}
             </DialogDescription>
@@ -323,16 +351,31 @@ export function InvoiceFormDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="invoiceNumber">{t("columnInvoiceNumber")}</Label>
-                <Input
-                  id="invoiceNumber"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                  required
-                />
-              </div>
+            <div className={showSeriesSelect ? "grid grid-cols-2 gap-4" : "flex flex-col gap-2"}>
+              {showSeriesSelect && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="series-select">{t("seriesLabel")}</Label>
+                  <Select
+                    value={invoiceSeriesId !== null ? String(invoiceSeriesId) : null}
+                    onValueChange={handleSeriesChange}
+                  >
+                    <SelectTrigger id="series-select" className="w-full">
+                      <SelectValue>
+                        {(value: string | null) =>
+                          seriesSelectOptions.find((s) => String(s.invoiceSeriesId) === value)?.prefix ?? ""
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false}>
+                      {seriesSelectOptions.map((s) => (
+                        <SelectItem key={s.invoiceSeriesId} value={String(s.invoiceSeriesId)}>
+                          {s.prefix}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="invoiceDate">{t("columnInvoiceDate")}</Label>
                 <Input
@@ -344,6 +387,10 @@ export function InvoiceFormDialog({
                 />
               </div>
             </div>
+
+            {!isEditMode && availableInvoiceSeries.length === 0 && (
+              <p className="text-sm text-destructive">{t("noActiveSeriesError")}</p>
+            )}
 
             <div className="flex flex-col gap-2">
               <Label>{t("linesLabel")}</Label>
@@ -452,8 +499,11 @@ export function InvoiceFormDialog({
               >
                 {tCommon("cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? tCommon("processing") : tCommon("save")}
+              <Button
+                type="submit"
+                disabled={isSubmitting || (!isEditMode && availableInvoiceSeries.length === 0)}
+              >
+                {isSubmitting ? tCommon("processing") : t("saveDraftButton")}
               </Button>
             </DialogFooter>
           </form>

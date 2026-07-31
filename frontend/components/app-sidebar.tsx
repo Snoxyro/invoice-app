@@ -4,7 +4,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Building, Building2, LayoutDashboard, LogOut, Receipt, Settings, ShieldCheck, Users } from "lucide-react";
+import {
+  Building,
+  Building2,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Receipt,
+  Settings,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -44,6 +54,9 @@ export function AppSidebar() {
       : null,
     hasPermission("Invoices", "Read")
       ? { href: "/invoices", label: t("invoices"), icon: Receipt }
+      : null,
+    hasPermission("Branches", "Read")
+      ? { href: "/branches", label: t("branches"), icon: Landmark }
       : null,
     hasPermission("Profiles", "Read")
       ? { href: "/profiles", label: t("profiles"), icon: ShieldCheck }

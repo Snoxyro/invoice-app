@@ -5,6 +5,8 @@ import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   permissionKey,
+  type BranchOption,
+  type InvoiceSeriesOption,
   type MyPermissionsResponse,
   type PermissionActionType,
   type PermissionResource,
@@ -19,6 +21,10 @@ interface PermissionContextValue {
   vatRates: VatRateOption[];
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
+  canAccessAllBranches: boolean;
+  branchId: number | null;
+  availableInvoiceSeries: InvoiceSeriesOption[];
+  availableBranches: BranchOption[];
   hasPermission: (resource: PermissionResource, action: PermissionActionType) => boolean;
 }
 
@@ -64,6 +70,10 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         vatRates: data?.vatRates ?? [],
         minInvoiceAmount: data?.minInvoiceAmount ?? null,
         maxInvoiceAmount: data?.maxInvoiceAmount ?? null,
+        canAccessAllBranches: data?.canAccessAllBranches ?? false,
+        branchId: data?.branchId ?? null,
+        availableInvoiceSeries: data?.availableInvoiceSeries ?? [],
+        availableBranches: data?.availableBranches ?? [],
         hasPermission,
       }}
     >
