@@ -13,6 +13,8 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
         builder.Property(il => il.ItemName).IsRequired().HasMaxLength(200);
         builder.Property(il => il.Quantity).HasColumnType("decimal(18,2)");
         builder.Property(il => il.Price).HasColumnType("decimal(18,2)");
+        builder.Property(il => il.VatRatePercentage).HasColumnType("decimal(5,2)");
+        builder.Property(il => il.ExemptionReason).HasMaxLength(500);
 
         builder.HasOne(il => il.Invoice)
             .WithMany(i => i.InvoiceLines)

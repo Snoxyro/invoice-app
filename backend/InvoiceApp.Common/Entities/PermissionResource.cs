@@ -6,5 +6,6 @@ public enum PermissionResource
     Profiles = 1,
     Customers = 2,
     Invoices = 3,
-    Branches = 4
+    Branches = 4,
+    InvoiceSettings = 5
 }

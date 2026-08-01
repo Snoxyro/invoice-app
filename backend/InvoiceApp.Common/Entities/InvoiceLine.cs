@@ -10,6 +10,9 @@ public class InvoiceLine : BaseEntity
     public decimal Price { get; set; }
     public int VatRateId { get; set; }
     public VatRate VatRate { get; set; } = null!;
+    public decimal VatRatePercentage { get; set; }
+    public string? ExemptionReason { get; set; }
     public int UserId { get; set; }
     public User User { get; set; } = null!;
+    public ICollection<InvoiceLineCustomValue> CustomValues { get; set; } = new List<InvoiceLineCustomValue>();
 }

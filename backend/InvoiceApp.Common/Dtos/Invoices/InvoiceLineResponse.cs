@@ -8,6 +8,8 @@ public class InvoiceLineResponse
     public decimal Price { get; set; }
     public int VatRateId { get; set; }
     public decimal VatRatePercentage { get; set; }
+    public string? ExemptionReason { get; set; }
+    public List<InvoiceLineCustomValueResponse> CustomValues { get; set; } = new();
     public decimal Subtotal => Math.Round(Quantity * Price, 2);
     public decimal VatAmount => Math.Round(Subtotal * VatRatePercentage / 100, 2);
     public decimal LineTotal => Subtotal + VatAmount;

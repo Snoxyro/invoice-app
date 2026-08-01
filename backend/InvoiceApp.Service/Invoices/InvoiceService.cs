@@ -20,6 +20,7 @@ public class InvoiceService : IInvoiceService
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
     private readonly IRepository<Branch> _branchRepository;
+    private readonly IRepository<InvoiceLineCustomColumnDefinition> _customColumnRepository;
     private readonly IPermissionService _permissionService;
     private readonly IEInvoiceTransformer _eInvoiceTransformer;
     private readonly IPdfRenderer _pdfRenderer;
@@ -31,6 +32,7 @@ public class InvoiceService : IInvoiceService
         IRepository<VatRate> vatRateRepository,
         IRepository<InvoiceSeries> invoiceSeriesRepository,
         IRepository<Branch> branchRepository,
+        IRepository<InvoiceLineCustomColumnDefinition> customColumnRepository,
         IPermissionService permissionService,
         IEInvoiceTransformer eInvoiceTransformer,
         IPdfRenderer pdfRenderer,
@@ -41,6 +43,7 @@ public class InvoiceService : IInvoiceService
         _vatRateRepository = vatRateRepository;
         _invoiceSeriesRepository = invoiceSeriesRepository;
         _branchRepository = branchRepository;
+        _customColumnRepository = customColumnRepository;
         _permissionService = permissionService;
         _eInvoiceTransformer = eInvoiceTransformer;
         _pdfRenderer = pdfRenderer;
@@ -57,6 +60,8 @@ public class InvoiceService : IInvoiceService
         var series = await GetUsableSeriesAsync(context, request.InvoiceSeriesId);
 
         var vatRates = await GetVatRatesForLinesAsync(request.Lines);
+        ValidateExemptionReasons(request.Lines, vatRates);
+        var columnDefinitions = await GetOwnedColumnDefinitionsAsync(currentFirmId, request.Lines);
 
         var invoice = new Invoice
         {
@@ -67,29 +72,23 @@ public class InvoiceService : IInvoiceService
             InvoiceSeriesId = series.InvoiceSeriesId,
             Status = InvoiceStatus.Draft,
             CreatedByUserId = currentUserId,
-            InvoiceLines = request.Lines.Select(l => new InvoiceLine
-            {
-                ItemName = l.ItemName,
-                Quantity = l.Quantity,
-                Price = l.Price,
-                VatRateId = l.VatRateId,
-                UserId = currentUserId
-            }).ToList()
+            InvoiceLines = BuildInvoiceLines(request.Lines, vatRates, columnDefinitions, currentUserId)
         };
 
-        ApplyTotals(invoice, vatRates);
+        ApplyTotals(invoice);
 
         await _invoiceRepository.AddAsync(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
         var branchName = await GetBranchNameAsync(currentBranchId);
 
-        return MapToResponse(invoice, customer.Title, vatRates, branchName);
+        return MapToResponse(invoice, customer.Title, branchName);
     }
 
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeBranch: true);
 
@@ -102,6 +101,8 @@ public class InvoiceService : IInvoiceService
         var series = await GetUsableSeriesAsync(context, request.InvoiceSeriesId);
 
         var vatRates = await GetVatRatesForLinesAsync(request.Lines);
+        ValidateExemptionReasons(request.Lines, vatRates);
+        var columnDefinitions = await GetOwnedColumnDefinitionsAsync(currentFirmId, request.Lines);
 
         invoice.CustomerId = request.CustomerId;
         invoice.InvoiceDate = request.InvoiceDate;
@@ -109,31 +110,24 @@ public class InvoiceService : IInvoiceService
 
         invoice.InvoiceLines.Clear();
 
-        foreach (var line in request.Lines)
+        foreach (var line in BuildInvoiceLines(request.Lines, vatRates, columnDefinitions, currentUserId))
         {
-            invoice.InvoiceLines.Add(new InvoiceLine
-            {
-                ItemName = line.ItemName,
-                Quantity = line.Quantity,
-                Price = line.Price,
-                VatRateId = line.VatRateId,
-                UserId = currentUserId
-            });
+            invoice.InvoiceLines.Add(line);
         }
 
-        ApplyTotals(invoice, vatRates);
+        ApplyTotals(invoice);
 
         _invoiceRepository.Update(invoice);
         await _invoiceRepository.SaveChangesAsync();
 
-        return MapToResponse(invoice, customer.Title, vatRates, invoice.Branch?.Name);
+        return MapToResponse(invoice, customer.Title, invoice.Branch?.Name);
     }
 
     public async Task<InvoiceResponse> SendAsync(int currentUserId, int invoiceId)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var invoice = await GetOwnedInvoiceAsync(
-            context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
+            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true);
 
         if (invoice.Status == InvoiceStatus.Sent)
         {
@@ -145,19 +139,9 @@ public class InvoiceService : IInvoiceService
             throw new BusinessRuleException(ErrorCodes.InvoiceRequiresAtLeastOneLine);
         }
 
-        var lineRequests = invoice.InvoiceLines
-            .Select(l => new InvoiceLineRequest
-            {
-                ItemName = l.ItemName,
-                Quantity = l.Quantity,
-                Price = l.Price,
-                VatRateId = l.VatRateId
-            })
-            .ToList();
+        EnsureVatRatesAllowedForContext(invoice.InvoiceLines, context);
 
-        var vatRates = await GetAllowedVatRatesAsync(lineRequests, context);
-
-        ApplyTotals(invoice, vatRates);
+        ApplyTotals(invoice);
 
         ValidateInvoiceAmountWithinLimit(invoice.GrandTotal, context);
 
@@ -174,6 +158,7 @@ public class InvoiceService : IInvoiceService
                 invoice.GibStatusCode = SimulatedGibStatusCode;
                 invoice.GibStatusMessage = SimulatedGibStatusMessage;
                 invoice.SentDate = DateTime.UtcNow;
+                invoice.SentXmlContent = EInvoiceXmlBuilder.Build(invoice);
 
                 _invoiceRepository.Update(invoice);
                 await _invoiceRepository.SaveChangesAsync();
@@ -187,7 +172,71 @@ public class InvoiceService : IInvoiceService
             }
         });
 
-        return MapToResponse(invoice, invoice.Customer.Title, vatRates, invoice.Branch?.Name);
+        return MapToResponse(invoice, invoice.Customer.Title, invoice.Branch?.Name);
+    }
+
+    public async Task<InvoiceResponse> CreateReturnAsync(int currentUserId, int invoiceId)
+    {
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+
+        var originalInvoice = await GetOwnedInvoiceAsync(
+            context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
+
+        if (originalInvoice.Status != InvoiceStatus.Sent)
+        {
+            throw new BusinessRuleException(ErrorCodes.OriginalInvoiceNotSentCannotReturn);
+        }
+
+        var series = await _invoiceSeriesRepository.Query()
+            .Where(s => s.BranchId == originalInvoice.BranchId && s.IsActive)
+            .OrderBy(s => s.Prefix)
+            .FirstOrDefaultAsync();
+
+        if (series is null)
+        {
+            throw new NotFoundException(
+                ErrorCodes.SeriesNotFound,
+                new Dictionary<string, string> { ["branchId"] = originalInvoice.BranchId?.ToString() ?? string.Empty });
+        }
+
+        var returnInvoice = new Invoice
+        {
+            CustomerId = originalInvoice.CustomerId,
+            InvoiceDate = DateTime.UtcNow,
+            FirmId = currentFirmId,
+            BranchId = originalInvoice.BranchId,
+            InvoiceSeriesId = series.InvoiceSeriesId,
+            Status = InvoiceStatus.Draft,
+            InvoiceTypeCode = InvoiceTypeCode.Iade,
+            OriginalInvoiceId = originalInvoice.InvoiceId,
+            CreatedByUserId = currentUserId,
+            InvoiceLines = originalInvoice.InvoiceLines.Select(l => new InvoiceLine
+            {
+                ItemName = l.ItemName,
+                Quantity = l.Quantity,
+                Price = l.Price,
+                VatRateId = l.VatRateId,
+                VatRatePercentage = l.VatRatePercentage,
+                ExemptionReason = l.ExemptionReason,
+                UserId = currentUserId,
+                CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValue
+                {
+                    ColumnDefinitionId = cv.ColumnDefinitionId,
+                    ColumnLabel = cv.ColumnLabel,
+                    Value = cv.Value
+                }).ToList()
+            }).ToList()
+        };
+
+        ApplyTotals(returnInvoice);
+
+        await _invoiceRepository.AddAsync(returnInvoice);
+        await _invoiceRepository.SaveChangesAsync();
+
+        var branchName = await GetBranchNameAsync(returnInvoice.BranchId);
+
+        return MapToResponse(returnInvoice, originalInvoice.Customer.Title, branchName);
     }
 
     public async Task DeleteAsync(int currentUserId, int invoiceId)
@@ -208,12 +257,7 @@ public class InvoiceService : IInvoiceService
         var invoice = await GetOwnedInvoiceAsync(
             context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
 
-        var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
-        var vatRates = await _vatRateRepository.Query()
-            .Where(v => vatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
-
-        return MapToResponse(invoice, invoice.Customer.Title, vatRates, invoice.Branch?.Name);
+        return MapToResponse(invoice, invoice.Customer.Title, invoice.Branch?.Name);
     }
 
     public async Task<string> GetPreviewHtmlAsync(int currentUserId, int invoiceId)
@@ -242,12 +286,12 @@ public class InvoiceService : IInvoiceService
         var invoice = await GetOwnedInvoiceAsync(
             context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true);
 
-        var vatRateIds = invoice.InvoiceLines.Select(l => l.VatRateId).Distinct().ToList();
-        var vatRates = await _vatRateRepository.Query()
-            .Where(v => vatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+        if (invoice.Status == InvoiceStatus.Sent && invoice.SentXmlContent is not null)
+        {
+            return invoice.SentXmlContent;
+        }
 
-        return EInvoiceXmlBuilder.Build(invoice, vatRates);
+        return EInvoiceXmlBuilder.Build(invoice);
     }
 
     public async Task<InvoiceListResponse> GetPagedAsync(int currentUserId, InvoiceListRequest request)
@@ -361,13 +405,13 @@ public class InvoiceService : IInvoiceService
             new Dictionary<string, string> { ["customerId"] = customerId.ToString() });
     }
 
-    private async Task<Dictionary<int, decimal>> GetVatRatesForLinesAsync(List<InvoiceLineRequest> lines)
+    private async Task<Dictionary<int, VatRate>> GetVatRatesForLinesAsync(List<InvoiceLineRequest> lines)
     {
         var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
 
         var vatRates = await _vatRateRepository.Query()
             .Where(v => requestedVatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
+            .ToDictionaryAsync(v => v.VatRateId);
 
         if (vatRates.Count != requestedVatRateIds.Count)
         {
@@ -377,12 +421,72 @@ public class InvoiceService : IInvoiceService
         return vatRates;
     }
 
-    private async Task<Dictionary<int, decimal>> GetAllowedVatRatesAsync(
-        List<InvoiceLineRequest> lines, UserPermissionContext context)
+    private static void ValidateExemptionReasons(List<InvoiceLineRequest> lines, Dictionary<int, VatRate> vatRates)
     {
-        var requestedVatRateIds = lines.Select(l => l.VatRateId).Distinct().ToList();
+        foreach (var line in lines)
+        {
+            if (vatRates[line.VatRateId].IsExemption && string.IsNullOrWhiteSpace(line.ExemptionReason))
+            {
+                throw new BusinessRuleException(ErrorCodes.ExemptionReasonRequired);
+            }
+        }
+    }
 
-        var notAllowed = requestedVatRateIds.Where(id => !context.VatRateIds.Contains(id)).ToList();
+    private async Task<Dictionary<int, InvoiceLineCustomColumnDefinition>> GetOwnedColumnDefinitionsAsync(
+        int firmId, List<InvoiceLineRequest> lines)
+    {
+        var columnDefinitionIds = lines
+            .SelectMany(l => l.CustomValues)
+            .Select(cv => cv.ColumnDefinitionId)
+            .Distinct()
+            .ToList();
+
+        if (columnDefinitionIds.Count == 0)
+        {
+            return new Dictionary<int, InvoiceLineCustomColumnDefinition>();
+        }
+
+        var columnDefinitions = await _customColumnRepository.Query()
+            .Where(c => columnDefinitionIds.Contains(c.InvoiceLineCustomColumnDefinitionId) && c.FirmId == firmId)
+            .ToDictionaryAsync(c => c.InvoiceLineCustomColumnDefinitionId);
+
+        if (columnDefinitions.Count != columnDefinitionIds.Count)
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidCustomColumnSelection);
+        }
+
+        return columnDefinitions;
+    }
+
+    private static List<InvoiceLine> BuildInvoiceLines(
+        List<InvoiceLineRequest> lines,
+        Dictionary<int, VatRate> vatRates,
+        Dictionary<int, InvoiceLineCustomColumnDefinition> columnDefinitions,
+        int currentUserId)
+    {
+        return lines.Select(l => new InvoiceLine
+        {
+            ItemName = l.ItemName,
+            Quantity = l.Quantity,
+            Price = l.Price,
+            VatRateId = l.VatRateId,
+            VatRatePercentage = vatRates[l.VatRateId].Rate,
+            ExemptionReason = vatRates[l.VatRateId].IsExemption ? l.ExemptionReason : null,
+            UserId = currentUserId,
+            CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValue
+            {
+                ColumnDefinitionId = cv.ColumnDefinitionId,
+                ColumnLabel = columnDefinitions[cv.ColumnDefinitionId].Label,
+                Value = cv.Value
+            }).ToList()
+        }).ToList();
+    }
+
+    private static void EnsureVatRatesAllowedForContext(IEnumerable<InvoiceLine> lines, UserPermissionContext context)
+    {
+        var notAllowed = lines.Select(l => l.VatRateId).Distinct()
+            .Where(id => !context.VatRateIds.Contains(id))
+            .ToList();
 
         if (notAllowed.Count > 0)
         {
@@ -390,10 +494,6 @@ public class InvoiceService : IInvoiceService
                 ErrorCodes.VatRateNotAllowedForProfile,
                 new Dictionary<string, string> { ["vatRateIds"] = string.Join(",", notAllowed) });
         }
-
-        return await _vatRateRepository.Query()
-            .Where(v => requestedVatRateIds.Contains(v.VatRateId))
-            .ToDictionaryAsync(v => v.VatRateId, v => v.Rate);
     }
 
     private async Task<string> AllocateInvoiceNumberAsync(int invoiceSeriesId)
@@ -451,7 +551,7 @@ public class InvoiceService : IInvoiceService
 
         if (includeLines)
         {
-            query = query.Include(i => i.InvoiceLines);
+            query = query.Include(i => i.InvoiceLines).ThenInclude(l => l.CustomValues);
         }
 
         if (includeCustomer)
@@ -494,7 +594,7 @@ public class InvoiceService : IInvoiceService
             .FirstOrDefaultAsync();
     }
 
-    private static void ApplyTotals(Invoice invoice, Dictionary<int, decimal> vatRates)
+    private static void ApplyTotals(Invoice invoice)
     {
         decimal subtotal = 0;
         decimal vatTotal = 0;
@@ -502,7 +602,7 @@ public class InvoiceService : IInvoiceService
         foreach (var line in invoice.InvoiceLines)
         {
             var lineSubtotal = Math.Round(line.Quantity * line.Price, 2);
-            var lineVat = Math.Round(lineSubtotal * vatRates[line.VatRateId] / 100, 2);
+            var lineVat = Math.Round(lineSubtotal * line.VatRatePercentage / 100, 2);
 
             subtotal += lineSubtotal;
             vatTotal += lineVat;
@@ -530,8 +630,7 @@ public class InvoiceService : IInvoiceService
         }
     }
 
-    private static InvoiceResponse MapToResponse(
-        Invoice invoice, string customerTitle, Dictionary<int, decimal> vatRates, string? branchName)
+    private static InvoiceResponse MapToResponse(Invoice invoice, string customerTitle, string? branchName)
     {
         return new InvoiceResponse
         {
@@ -550,6 +649,8 @@ public class InvoiceService : IInvoiceService
             GibStatusCode = invoice.GibStatusCode,
             GibStatusMessage = invoice.GibStatusMessage,
             SentDate = invoice.SentDate,
+            InvoiceTypeCode = invoice.InvoiceTypeCode,
+            OriginalInvoiceId = invoice.OriginalInvoiceId,
             CreatedDate = invoice.CreatedDate,
             UpdatedDate = invoice.UpdatedDate,
             Lines = invoice.InvoiceLines.Select(l => new InvoiceLineResponse
@@ -559,7 +660,14 @@ public class InvoiceService : IInvoiceService
                 Quantity = l.Quantity,
                 Price = l.Price,
                 VatRateId = l.VatRateId,
-                VatRatePercentage = vatRates[l.VatRateId]
+                VatRatePercentage = l.VatRatePercentage,
+                ExemptionReason = l.ExemptionReason,
+                CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValueResponse
+                {
+                    ColumnDefinitionId = cv.ColumnDefinitionId,
+                    ColumnLabel = cv.ColumnLabel,
+                    Value = cv.Value
+                }).ToList()
             }).ToList()
         };
     }

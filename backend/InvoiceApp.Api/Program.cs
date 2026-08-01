@@ -6,7 +6,9 @@ using InvoiceApp.Common.Entities;
 using InvoiceApp.Common.Security;
 using InvoiceApp.Repository;
 using InvoiceApp.Service.Auth;
+using InvoiceApp.Service.BankAccounts;
 using InvoiceApp.Service.Branches;
+using InvoiceApp.Service.CustomColumns;
 using InvoiceApp.Service.Customers;
 using InvoiceApp.Service.Dashboard;
 using InvoiceApp.Service.EInvoice;
@@ -65,6 +67,8 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IFirmService, FirmService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IBranchService, BranchService>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
+builder.Services.AddScoped<ICustomColumnService, CustomColumnService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddSingleton<IEInvoiceTransformer, EInvoiceTransformer>();
 builder.Services.AddSingleton<IPdfRenderer, PuppeteerPdfRenderer>();
@@ -126,6 +130,8 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+    dbContext.Database.Migrate();
 
     var adminExists = dbContext.Users.Any(u => u.Role == UserRole.Admin);
 

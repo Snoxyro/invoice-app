@@ -17,7 +17,7 @@ public static class EInvoiceXmlBuilder
     private const string DraftInvoiceNumberPlaceholder = "(taslak — gönderildiğinde numara atanacak)";
     private const string VatTaxTypeCode = "0015";
 
-    public static byte[] Build(Invoice invoice, IReadOnlyDictionary<int, decimal> vatRates)
+    public static byte[] Build(Invoice invoice)
     {
         XNamespace invNs = InvoiceNamespaceUri;
         XNamespace cac = CacNamespaceUri;
@@ -50,9 +50,9 @@ public static class EInvoiceXmlBuilder
             new XElement(cbc + "LineCountNumeric", lines.Count.ToString(CultureInfo.InvariantCulture)),
             BuildSupplierParty(cac, cbc, invoice),
             BuildCustomerParty(cac, cbc, invoice.Customer),
-            BuildTaxTotal(cac, cbc, lines, vatRates),
+            BuildTaxTotal(cac, cbc, lines),
             BuildLegalMonetaryTotal(cac, cbc, invoice),
-            lines.Select((line, index) => BuildInvoiceLine(cac, cbc, line, index + 1, vatRates[line.VatRateId])));
+            lines.Select((line, index) => BuildInvoiceLine(cac, cbc, line, index + 1)));
 
         var document = new XDocument(new XDeclaration("1.0", "UTF-8", null), root);
 
@@ -160,11 +160,10 @@ public static class EInvoiceXmlBuilder
         return new XElement(cac + "AccountingCustomerParty", party);
     }
 
-    private static XElement BuildTaxTotal(
-        XNamespace cac, XNamespace cbc, List<InvoiceLine> lines, IReadOnlyDictionary<int, decimal> vatRates)
+    private static XElement BuildTaxTotal(XNamespace cac, XNamespace cbc, List<InvoiceLine> lines)
     {
         var groups = lines
-            .GroupBy(l => vatRates[l.VatRateId])
+            .GroupBy(l => l.VatRatePercentage)
             .Select(g => new
             {
                 Percent = g.Key,
@@ -198,11 +197,10 @@ public static class EInvoiceXmlBuilder
             new XElement(cbc + "PayableAmount", new XAttribute("currencyID", "TRY"), FormatAmount(invoice.GrandTotal)));
     }
 
-    private static XElement BuildInvoiceLine(
-        XNamespace cac, XNamespace cbc, InvoiceLine line, int lineNumber, decimal vatPercent)
+    private static XElement BuildInvoiceLine(XNamespace cac, XNamespace cbc, InvoiceLine line, int lineNumber)
     {
         var lineSubtotal = Math.Round(line.Quantity * line.Price, 2);
-        var lineVat = Math.Round(lineSubtotal * vatPercent / 100, 2);
+        var lineVat = Math.Round(lineSubtotal * line.VatRatePercentage / 100, 2);
 
         return new XElement(
             cac + "InvoiceLine",
@@ -220,7 +218,7 @@ public static class EInvoiceXmlBuilder
                     cac + "TaxSubtotal",
                     new XElement(cbc + "TaxableAmount", new XAttribute("currencyID", "TRY"), FormatAmount(lineSubtotal)),
                     new XElement(cbc + "TaxAmount", new XAttribute("currencyID", "TRY"), FormatAmount(lineVat)),
-                    new XElement(cbc + "Percent", FormatAmount(vatPercent)),
+                    new XElement(cbc + "Percent", FormatAmount(line.VatRatePercentage)),
                     new XElement(
                         cac + "TaxCategory",
                         new XElement(cac + "TaxScheme", new XElement(cbc + "TaxTypeCode", VatTaxTypeCode))))));

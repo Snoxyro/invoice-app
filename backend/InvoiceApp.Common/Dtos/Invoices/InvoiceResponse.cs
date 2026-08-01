@@ -19,6 +19,8 @@ public class InvoiceResponse
     public string? GibStatusCode { get; set; }
     public string? GibStatusMessage { get; set; }
     public DateTime? SentDate { get; set; }
+    public InvoiceTypeCode InvoiceTypeCode { get; set; }
+    public int? OriginalInvoiceId { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
     public List<InvoiceLineResponse> Lines { get; set; } = new();

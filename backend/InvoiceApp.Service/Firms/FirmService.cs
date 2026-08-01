@@ -5,6 +5,7 @@ using InvoiceApp.Common.Paging;
 using InvoiceApp.Common.Security;
 using InvoiceApp.Repository;
 using InvoiceApp.Repository.Extensions;
+using InvoiceApp.Service.Permissions;
 using InvoiceApp.Service.Shared;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
@@ -16,6 +17,11 @@ public class FirmService : IFirmService
     private const string SystemAdminProfileName = "admin";
     private const string HeadquartersBranchName = "Merkez";
 
+    private static readonly string[] AllowedFontFamilies =
+    {
+        "Inter", "Arial", "Times New Roman", "Georgia", "Roboto"
+    };
+
     private readonly IRepository<Firm> _firmRepository;
     private readonly IRepository<Profile> _profileRepository;
     private readonly IRepository<User> _userRepository;
@@ -25,6 +31,7 @@ public class FirmService : IFirmService
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Branch> _branchRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IPermissionService _permissionService;
 
     public FirmService(
         IRepository<Firm> firmRepository,
@@ -35,7 +42,8 @@ public class FirmService : IFirmService
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
         IRepository<Branch> branchRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IPermissionService permissionService)
     {
         _firmRepository = firmRepository;
         _profileRepository = profileRepository;
@@ -46,6 +54,7 @@ public class FirmService : IFirmService
         _invoiceRepository = invoiceRepository;
         _branchRepository = branchRepository;
         _passwordHasher = passwordHasher;
+        _permissionService = permissionService;
     }
 
     public async Task<FirmResponse> CreateAsync(FirmCreateRequest request)
@@ -237,6 +246,54 @@ public class FirmService : IFirmService
         };
     }
 
+    public async Task<FirmBrandingResponse> GetBrandingAsync(int currentUserId)
+    {
+        var firm = await GetOwnFirmAsync(currentUserId);
+        return MapToBrandingResponse(firm);
+    }
+
+    public async Task<FirmBrandingResponse> UpdateBrandingAsync(int currentUserId, FirmBrandingUpdateRequest request)
+    {
+        ValidateBranding(request);
+
+        var firm = await GetOwnFirmAsync(currentUserId);
+
+        firm.LogoBase64 = request.LogoBase64;
+        firm.StampBase64 = request.StampBase64;
+        firm.AccentColorHex = request.AccentColorHex;
+        firm.FontFamily = request.FontFamily;
+
+        _firmRepository.Update(firm);
+        await _firmRepository.SaveChangesAsync();
+
+        return MapToBrandingResponse(firm);
+    }
+
+    private async Task<Firm> GetOwnFirmAsync(int currentUserId)
+    {
+        var context = await _permissionService.GetUserContextAsync(currentUserId);
+        var firmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+
+        return await _firmRepository.GetByIdAsync(firmId)
+            ?? throw new NotFoundException(
+                ErrorCodes.FirmNotFound,
+                new Dictionary<string, string> { ["firmId"] = firmId.ToString() });
+    }
+
+    private static void ValidateBranding(FirmBrandingUpdateRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.FontFamily) && !AllowedFontFamilies.Contains(request.FontFamily))
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidFontFamily);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.AccentColorHex) &&
+            !Regex.IsMatch(request.AccentColorHex, "^#[0-9A-Fa-f]{6}$"))
+        {
+            throw new BusinessRuleException(ErrorCodes.InvalidAccentColorFormat);
+        }
+    }
+
     private static void ValidateVkn(string? vkn)
     {
         if (!string.IsNullOrWhiteSpace(vkn) && !Regex.IsMatch(vkn, "^[0-9]{1,10}$"))
@@ -254,6 +311,17 @@ public class FirmService : IFirmService
             Vkn = firm.Vkn,
             CreatedDate = firm.CreatedDate,
             UpdatedDate = firm.UpdatedDate
+        };
+    }
+
+    private static FirmBrandingResponse MapToBrandingResponse(Firm firm)
+    {
+        return new FirmBrandingResponse
+        {
+            LogoBase64 = firm.LogoBase64,
+            StampBase64 = firm.StampBase64,
+            AccentColorHex = firm.AccentColorHex,
+            FontFamily = firm.FontFamily
         };
     }
 }

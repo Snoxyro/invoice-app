@@ -21,6 +21,16 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.Property(i => i.GibStatusCode).HasMaxLength(10);
         builder.Property(i => i.GibStatusMessage).HasMaxLength(200);
+        builder.Property(i => i.SentXmlContent).HasColumnType("varbinary(max)");
+
+        builder.Property(i => i.InvoiceTypeCode)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.HasOne(i => i.OriginalInvoice)
+            .WithMany()
+            .HasForeignKey(i => i.OriginalInvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(i => i.Customer)
             .WithMany(c => c.Invoices)
@@ -53,5 +63,6 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasIndex(i => i.BranchId);
         builder.HasIndex(i => i.InvoiceDate);
         builder.HasIndex(i => i.InvoiceSeriesId);
+        builder.HasIndex(i => i.OriginalInvoiceId);
     }
 }

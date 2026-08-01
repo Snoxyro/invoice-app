@@ -4,6 +4,7 @@ using InvoiceApp.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InvoiceApp.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801095405_AddInvoiceViewIntegrity")]
+    partial class AddInvoiceViewIntegrity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,45 +24,6 @@ namespace InvoiceApp.Repository.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.BankAccount", b =>
-                {
-                    b.Property<int>("BankAccountId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BankAccountId"));
-
-                    b.Property<string>("BankName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
-                    b.Property<int>("FirmId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Iban")
-                        .IsRequired()
-                        .HasMaxLength(34)
-                        .HasColumnType("nvarchar(34)");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("BankAccountId");
-
-                    b.HasIndex("FirmId");
-
-                    b.ToTable("BankAccounts");
-                });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.Branch", b =>
                 {
@@ -181,27 +145,13 @@ namespace InvoiceApp.Repository.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FirmId"));
 
-                    b.Property<string>("AccentColorHex")
-                        .HasMaxLength(9)
-                        .HasColumnType("nvarchar(9)");
-
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("FontFamily")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("LogoBase64")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("StampBase64")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("datetime2");
@@ -262,16 +212,8 @@ namespace InvoiceApp.Repository.Migrations
                     b.Property<int>("InvoiceSeriesId")
                         .HasColumnType("int");
 
-                    b.Property<string>("InvoiceTypeCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("OriginalInvoiceId")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("SentDate")
                         .HasColumnType("datetime2");
@@ -307,8 +249,6 @@ namespace InvoiceApp.Repository.Migrations
 
                     b.HasIndex("InvoiceSeriesId");
 
-                    b.HasIndex("OriginalInvoiceId");
-
                     b.ToTable("Invoices");
                 });
 
@@ -322,10 +262,6 @@ namespace InvoiceApp.Repository.Migrations
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("ExemptionReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("InvoiceId")
                         .HasColumnType("int");
@@ -362,80 +298,6 @@ namespace InvoiceApp.Repository.Migrations
                     b.HasIndex("VatRateId");
 
                     b.ToTable("InvoiceLines");
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLineCustomColumnDefinition", b =>
-                {
-                    b.Property<int>("InvoiceLineCustomColumnDefinitionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceLineCustomColumnDefinitionId"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<int>("FirmId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("InvoiceLineCustomColumnDefinitionId");
-
-                    b.HasIndex("FirmId");
-
-                    b.ToTable("InvoiceLineCustomColumnDefinitions");
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLineCustomValue", b =>
-                {
-                    b.Property<int>("InvoiceLineCustomValueId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceLineCustomValueId"));
-
-                    b.Property<int>("ColumnDefinitionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ColumnLabel")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("InvoiceLineId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("InvoiceLineCustomValueId");
-
-                    b.HasIndex("ColumnDefinitionId");
-
-                    b.HasIndex("InvoiceLineId");
-
-                    b.ToTable("InvoiceLineCustomValues");
                 });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceSeries", b =>
@@ -650,34 +512,6 @@ namespace InvoiceApp.Repository.Migrations
                             Action = "Delete",
                             CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Resource = "Branches"
-                        },
-                        new
-                        {
-                            PermissionId = 21,
-                            Action = "Create",
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Resource = "InvoiceSettings"
-                        },
-                        new
-                        {
-                            PermissionId = 22,
-                            Action = "Read",
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Resource = "InvoiceSettings"
-                        },
-                        new
-                        {
-                            PermissionId = 23,
-                            Action = "Update",
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Resource = "InvoiceSettings"
-                        },
-                        new
-                        {
-                            PermissionId = 24,
-                            Action = "Delete",
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Resource = "InvoiceSettings"
                         });
                 });
 
@@ -847,9 +681,6 @@ namespace InvoiceApp.Repository.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsExemption")
-                        .HasColumnType("bit");
-
                     b.Property<decimal>("Rate")
                         .HasColumnType("decimal(5,2)");
 
@@ -868,41 +699,20 @@ namespace InvoiceApp.Repository.Migrations
                         {
                             VatRateId = 1,
                             CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsExemption = false,
                             Rate = 1m
                         },
                         new
                         {
                             VatRateId = 2,
                             CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsExemption = false,
                             Rate = 10m
                         },
                         new
                         {
                             VatRateId = 3,
                             CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsExemption = false,
                             Rate = 20m
-                        },
-                        new
-                        {
-                            VatRateId = 4,
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsExemption = true,
-                            Rate = 0m
                         });
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.BankAccount", b =>
-                {
-                    b.HasOne("InvoiceApp.Common.Entities.Firm", "Firm")
-                        .WithMany("BankAccounts")
-                        .HasForeignKey("FirmId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Firm");
                 });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.Branch", b =>
@@ -965,11 +775,6 @@ namespace InvoiceApp.Repository.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("InvoiceApp.Common.Entities.Invoice", "OriginalInvoice")
-                        .WithMany()
-                        .HasForeignKey("OriginalInvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Branch");
 
                     b.Navigation("CreatedByUser");
@@ -979,8 +784,6 @@ namespace InvoiceApp.Repository.Migrations
                     b.Navigation("Firm");
 
                     b.Navigation("InvoiceSeries");
-
-                    b.Navigation("OriginalInvoice");
                 });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLine", b =>
@@ -1008,36 +811,6 @@ namespace InvoiceApp.Repository.Migrations
                     b.Navigation("User");
 
                     b.Navigation("VatRate");
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLineCustomColumnDefinition", b =>
-                {
-                    b.HasOne("InvoiceApp.Common.Entities.Firm", "Firm")
-                        .WithMany("CustomColumnDefinitions")
-                        .HasForeignKey("FirmId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Firm");
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLineCustomValue", b =>
-                {
-                    b.HasOne("InvoiceApp.Common.Entities.InvoiceLineCustomColumnDefinition", "ColumnDefinition")
-                        .WithMany()
-                        .HasForeignKey("ColumnDefinitionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("InvoiceApp.Common.Entities.InvoiceLine", "InvoiceLine")
-                        .WithMany("CustomValues")
-                        .HasForeignKey("InvoiceLineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ColumnDefinition");
-
-                    b.Navigation("InvoiceLine");
                 });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceSeries", b =>
@@ -1142,11 +915,7 @@ namespace InvoiceApp.Repository.Migrations
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.Firm", b =>
                 {
-                    b.Navigation("BankAccounts");
-
                     b.Navigation("Branches");
-
-                    b.Navigation("CustomColumnDefinitions");
 
                     b.Navigation("Customers");
 
@@ -1160,11 +929,6 @@ namespace InvoiceApp.Repository.Migrations
             modelBuilder.Entity("InvoiceApp.Common.Entities.Invoice", b =>
                 {
                     b.Navigation("InvoiceLines");
-                });
-
-            modelBuilder.Entity("InvoiceApp.Common.Entities.InvoiceLine", b =>
-                {
-                    b.Navigation("CustomValues");
                 });
 
             modelBuilder.Entity("InvoiceApp.Common.Entities.Permission", b =>

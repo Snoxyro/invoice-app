@@ -43,5 +43,15 @@ public static class ErrorCodes
     public const string SeriesPrefixAlreadyExists = "SERIES_PREFIX_ALREADY_EXISTS";
     public const string SeriesPrefixInvalidFormat = "SERIES_PREFIX_INVALID_FORMAT";
     public const string SeriesLastActiveCannotDeactivate = "SERIES_LAST_ACTIVE_CANNOT_DEACTIVATE";
+    public const string BankAccountNotFound = "BANK_ACCOUNT_NOT_FOUND";
+    public const string CustomColumnNotFound = "CUSTOM_COLUMN_NOT_FOUND";
+    public const string CustomColumnLabelAlreadyExists = "CUSTOM_COLUMN_LABEL_ALREADY_EXISTS";
+    public const string ExemptionReasonRequired = "EXEMPTION_REASON_REQUIRED";
+    public const string OriginalInvoiceNotSentCannotReturn = "ORIGINAL_INVOICE_NOT_SENT_CANNOT_RETURN";
+    public const string InvalidFontFamily = "INVALID_FONT_FAMILY";
+    public const string InvalidAccentColorFormat = "INVALID_ACCENT_COLOR_FORMAT";
+    public const string InvalidIbanFormat = "INVALID_IBAN_FORMAT";
+    public const string InvalidCurrencyFormat = "INVALID_CURRENCY_FORMAT";
+    public const string InvalidCustomColumnSelection = "INVALID_CUSTOM_COLUMN_SELECTION";
     public const string UnexpectedError = "UNEXPECTED_ERROR";
 }

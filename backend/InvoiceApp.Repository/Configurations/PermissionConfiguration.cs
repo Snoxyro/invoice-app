@@ -42,7 +42,11 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
             new Permission { PermissionId = 17, Resource = PermissionResource.Branches, Action = PermissionAction.Create, CreatedDate = SeedDate },
             new Permission { PermissionId = 18, Resource = PermissionResource.Branches, Action = PermissionAction.Read, CreatedDate = SeedDate },
             new Permission { PermissionId = 19, Resource = PermissionResource.Branches, Action = PermissionAction.Update, CreatedDate = SeedDate },
-            new Permission { PermissionId = 20, Resource = PermissionResource.Branches, Action = PermissionAction.Delete, CreatedDate = SeedDate }
+            new Permission { PermissionId = 20, Resource = PermissionResource.Branches, Action = PermissionAction.Delete, CreatedDate = SeedDate },
+            new Permission { PermissionId = 21, Resource = PermissionResource.InvoiceSettings, Action = PermissionAction.Create, CreatedDate = SeedDate },
+            new Permission { PermissionId = 22, Resource = PermissionResource.InvoiceSettings, Action = PermissionAction.Read, CreatedDate = SeedDate },
+            new Permission { PermissionId = 23, Resource = PermissionResource.InvoiceSettings, Action = PermissionAction.Update, CreatedDate = SeedDate },
+            new Permission { PermissionId = 24, Resource = PermissionResource.InvoiceSettings, Action = PermissionAction.Delete, CreatedDate = SeedDate }
         );
     }
 }

@@ -18,9 +18,10 @@ public class VatRateConfiguration : IEntityTypeConfiguration<VatRate>
         builder.HasIndex(v => v.Rate).IsUnique();
 
         builder.HasData(
-            new VatRate { VatRateId = 1, Rate = 1m, CreatedDate = SeedDate },
-            new VatRate { VatRateId = 2, Rate = 10m, CreatedDate = SeedDate },
-            new VatRate { VatRateId = 3, Rate = 20m, CreatedDate = SeedDate }
+            new VatRate { VatRateId = 1, Rate = 1m, IsExemption = false, CreatedDate = SeedDate },
+            new VatRate { VatRateId = 2, Rate = 10m, IsExemption = false, CreatedDate = SeedDate },
+            new VatRate { VatRateId = 3, Rate = 20m, IsExemption = false, CreatedDate = SeedDate },
+            new VatRate { VatRateId = 4, Rate = 0m, IsExemption = true, CreatedDate = SeedDate }
         );
     }
 }

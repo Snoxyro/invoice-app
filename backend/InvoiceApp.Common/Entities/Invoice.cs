@@ -20,6 +20,10 @@ public class Invoice : BaseEntity
     public string? GibStatusCode { get; set; }
     public string? GibStatusMessage { get; set; }
     public DateTime? SentDate { get; set; }
+    public byte[]? SentXmlContent { get; set; }
+    public InvoiceTypeCode InvoiceTypeCode { get; set; }
+    public int? OriginalInvoiceId { get; set; }
+    public Invoice? OriginalInvoice { get; set; }
     public int CreatedByUserId { get; set; }
     public User CreatedByUser { get; set; } = null!;
     public bool IsDeleted { get; set; }

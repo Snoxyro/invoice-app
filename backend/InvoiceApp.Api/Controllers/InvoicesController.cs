@@ -92,6 +92,14 @@ public class InvoicesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:int}/create-return")]
+    [RequirePermission(PermissionResource.Invoices, PermissionAction.Create)]
+    public async Task<ActionResult<InvoiceResponse>> CreateReturn(int id)
+    {
+        var result = await _invoiceService.CreateReturnAsync(User.GetUserId(), id);
+        return CreatedAtAction(nameof(GetById), new { id = result.InvoiceId }, result);
+    }
+
     [HttpDelete("{id:int}")]
     [RequirePermission(PermissionResource.Invoices, PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id)

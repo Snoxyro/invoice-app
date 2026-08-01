@@ -16,5 +16,17 @@ public class FirmConfiguration : IEntityTypeConfiguration<Firm>
 
         builder.Property(f => f.Vkn)
             .HasMaxLength(10);
+
+        builder.Property(f => f.LogoBase64)
+            .HasColumnType("nvarchar(max)");
+
+        builder.Property(f => f.StampBase64)
+            .HasColumnType("nvarchar(max)");
+
+        builder.Property(f => f.AccentColorHex)
+            .HasMaxLength(9);
+
+        builder.Property(f => f.FontFamily)
+            .HasMaxLength(50);
     }
 }

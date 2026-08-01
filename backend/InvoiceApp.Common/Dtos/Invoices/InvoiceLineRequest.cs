@@ -6,4 +6,6 @@ public class InvoiceLineRequest
     public decimal Quantity { get; set; }
     public decimal Price { get; set; }
     public int VatRateId { get; set; }
+    public string? ExemptionReason { get; set; }
+    public List<InvoiceLineCustomValueRequest> CustomValues { get; set; } = new();
 }

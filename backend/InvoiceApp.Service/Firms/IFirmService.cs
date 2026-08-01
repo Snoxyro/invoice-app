@@ -10,4 +10,6 @@ public interface IFirmService
     Task DeleteAsync(int firmId);
     Task<FirmResponse> GetByIdAsync(int firmId);
     Task<PagedResult<FirmResponse>> GetPagedAsync(PagedRequest request);
+    Task<FirmBrandingResponse> GetBrandingAsync(int currentUserId);
+    Task<FirmBrandingResponse> UpdateBrandingAsync(int currentUserId, FirmBrandingUpdateRequest request);
 }
