@@ -35,4 +35,12 @@ public class FirmBrandingController : ControllerBase
         var result = await _firmService.UpdateBrandingAsync(User.GetUserId(), request);
         return Ok(result);
     }
+
+    [HttpPost("preview")]
+    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Read)]
+    public async Task<ContentResult> Preview(FirmBrandingUpdateRequest request)
+    {
+        var html = await _firmService.GetBrandingPreviewAsync(User.GetUserId(), request);
+        return Content(html, "text/html");
+    }
 }

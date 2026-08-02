@@ -9,6 +9,10 @@ public class Firm : BaseEntity
     public string? StampBase64 { get; set; }
     public string? AccentColorHex { get; set; }
     public string? FontFamily { get; set; }
+    public int? LogoWidthPx { get; set; }
+    public int? LogoHeightPx { get; set; }
+    public int? StampWidthPx { get; set; }
+    public int? StampHeightPx { get; set; }
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<Profile> Profiles { get; set; } = new List<Profile>();
     public ICollection<Customer> Customers { get; set; } = new List<Customer>();

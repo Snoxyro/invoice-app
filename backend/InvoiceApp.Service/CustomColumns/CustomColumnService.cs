@@ -10,13 +10,16 @@ namespace InvoiceApp.Service.CustomColumns;
 public class CustomColumnService : ICustomColumnService
 {
     private readonly IRepository<InvoiceLineCustomColumnDefinition> _customColumnRepository;
+    private readonly IRepository<InvoiceLineCustomValue> _customValueRepository;
     private readonly IPermissionService _permissionService;
 
     public CustomColumnService(
         IRepository<InvoiceLineCustomColumnDefinition> customColumnRepository,
+        IRepository<InvoiceLineCustomValue> customValueRepository,
         IPermissionService permissionService)
     {
         _customColumnRepository = customColumnRepository;
+        _customValueRepository = customValueRepository;
         _permissionService = permissionService;
     }
 
@@ -29,7 +32,17 @@ public class CustomColumnService : ICustomColumnService
             .OrderBy(c => c.DisplayOrder)
             .ToListAsync();
 
-        return columns.Select(MapToResponse).ToList();
+        var columnIds = columns.Select(c => c.InvoiceLineCustomColumnDefinitionId).ToList();
+
+        var usedColumnIds = await _customValueRepository.Query()
+            .Where(cv => columnIds.Contains(cv.ColumnDefinitionId))
+            .Select(cv => cv.ColumnDefinitionId)
+            .Distinct()
+            .ToListAsync();
+
+        var usedSet = usedColumnIds.ToHashSet();
+
+        return columns.Select(c => MapToResponse(c, usedSet.Contains(c.InvoiceLineCustomColumnDefinitionId))).ToList();
     }
 
     public async Task<CustomColumnResponse> CreateAsync(int currentUserId, CustomColumnCreateRequest request)
@@ -49,7 +62,7 @@ public class CustomColumnService : ICustomColumnService
         await _customColumnRepository.AddAsync(column);
         await _customColumnRepository.SaveChangesAsync();
 
-        return MapToResponse(column);
+        return MapToResponse(column, isUsed: false);
     }
 
     public async Task<CustomColumnResponse> UpdateAsync(int currentUserId, int id, CustomColumnUpdateRequest request)
@@ -69,7 +82,9 @@ public class CustomColumnService : ICustomColumnService
         _customColumnRepository.Update(column);
         await _customColumnRepository.SaveChangesAsync();
 
-        return MapToResponse(column);
+        var isUsed = await _customValueRepository.Query().AnyAsync(cv => cv.ColumnDefinitionId == id);
+
+        return MapToResponse(column, isUsed);
     }
 
     public async Task DeleteAsync(int currentUserId, int id)
@@ -77,9 +92,14 @@ public class CustomColumnService : ICustomColumnService
         var currentFirmId = await GetCurrentFirmIdAsync(currentUserId);
         var column = await GetOwnedColumnAsync(currentFirmId, id);
 
-        column.IsActive = false;
+        var isUsed = await _customValueRepository.Query().AnyAsync(cv => cv.ColumnDefinitionId == id);
 
-        _customColumnRepository.Update(column);
+        if (isUsed)
+        {
+            throw new BusinessRuleException(ErrorCodes.CustomColumnInUseCannotDelete);
+        }
+
+        _customColumnRepository.Remove(column);
         await _customColumnRepository.SaveChangesAsync();
     }
 
@@ -119,7 +139,7 @@ public class CustomColumnService : ICustomColumnService
         }
     }
 
-    private static CustomColumnResponse MapToResponse(InvoiceLineCustomColumnDefinition column)
+    private static CustomColumnResponse MapToResponse(InvoiceLineCustomColumnDefinition column, bool isUsed)
     {
         return new CustomColumnResponse
         {
@@ -127,6 +147,7 @@ public class CustomColumnService : ICustomColumnService
             Label = column.Label,
             DisplayOrder = column.DisplayOrder,
             IsActive = column.IsActive,
+            IsUsed = isUsed,
             CreatedDate = column.CreatedDate,
             UpdatedDate = column.UpdatedDate
         };

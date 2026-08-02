@@ -4,4 +4,5 @@ public class VatRateResponse
 {
     public int VatRateId { get; set; }
     public decimal Rate { get; set; }
+    public bool IsExemption { get; set; }
 }

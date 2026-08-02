@@ -131,10 +131,25 @@ public static class EInvoiceXmlBuilder
             return null;
         }
 
+        var hasLogo = !string.IsNullOrWhiteSpace(firm.LogoBase64);
+        var hasStamp = !string.IsNullOrWhiteSpace(firm.StampBase64);
+
         return new XElement(
             app + "Branding",
-            string.IsNullOrWhiteSpace(firm.LogoBase64) ? null : new XElement(app + "LogoBase64", firm.LogoBase64),
-            string.IsNullOrWhiteSpace(firm.StampBase64) ? null : new XElement(app + "StampBase64", firm.StampBase64),
+            hasLogo ? new XElement(app + "LogoBase64", firm.LogoBase64) : null,
+            hasLogo && firm.LogoWidthPx is not null
+                ? new XElement(app + "LogoWidthPx", firm.LogoWidthPx.Value.ToString(CultureInfo.InvariantCulture))
+                : null,
+            hasLogo && firm.LogoHeightPx is not null
+                ? new XElement(app + "LogoHeightPx", firm.LogoHeightPx.Value.ToString(CultureInfo.InvariantCulture))
+                : null,
+            hasStamp ? new XElement(app + "StampBase64", firm.StampBase64) : null,
+            hasStamp && firm.StampWidthPx is not null
+                ? new XElement(app + "StampWidthPx", firm.StampWidthPx.Value.ToString(CultureInfo.InvariantCulture))
+                : null,
+            hasStamp && firm.StampHeightPx is not null
+                ? new XElement(app + "StampHeightPx", firm.StampHeightPx.Value.ToString(CultureInfo.InvariantCulture))
+                : null,
             string.IsNullOrWhiteSpace(firm.AccentColorHex) ? null : new XElement(app + "AccentColorHex", firm.AccentColorHex),
             string.IsNullOrWhiteSpace(firm.FontFamily) ? null : new XElement(app + "FontFamily", firm.FontFamily));
     }

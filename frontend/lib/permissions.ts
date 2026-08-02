@@ -1,9 +1,16 @@
-export type PermissionResource = "Users" | "Profiles" | "Customers" | "Invoices" | "Branches";
+export type PermissionResource =
+  | "Users"
+  | "Profiles"
+  | "Customers"
+  | "Invoices"
+  | "Branches"
+  | "InvoiceSettings";
 export type PermissionActionType = "Create" | "Read" | "Update" | "Delete";
 
 export interface VatRateOption {
   vatRateId: number;
   rate: number;
+  isExemption: boolean;
 }
 
 export interface InvoiceSeriesOption {

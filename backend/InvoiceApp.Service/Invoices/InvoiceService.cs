@@ -189,6 +189,11 @@ public class InvoiceService : IInvoiceService
             throw new BusinessRuleException(ErrorCodes.OriginalInvoiceNotSentCannotReturn);
         }
 
+        if (originalInvoice.InvoiceTypeCode == InvoiceTypeCode.Iade)
+        {
+            throw new BusinessRuleException(ErrorCodes.CannotReturnAReturnInvoice);
+        }
+
         var series = await _invoiceSeriesRepository.Query()
             .Where(s => s.BranchId == originalInvoice.BranchId && s.IsActive)
             .OrderBy(s => s.Prefix)

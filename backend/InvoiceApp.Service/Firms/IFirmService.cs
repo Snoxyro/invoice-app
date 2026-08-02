@@ -12,4 +12,5 @@ public interface IFirmService
     Task<PagedResult<FirmResponse>> GetPagedAsync(PagedRequest request);
     Task<FirmBrandingResponse> GetBrandingAsync(int currentUserId);
     Task<FirmBrandingResponse> UpdateBrandingAsync(int currentUserId, FirmBrandingUpdateRequest request);
+    Task<string> GetBrandingPreviewAsync(int currentUserId, FirmBrandingUpdateRequest request);
 }

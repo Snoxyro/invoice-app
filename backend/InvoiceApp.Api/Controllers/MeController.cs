@@ -41,7 +41,7 @@ public class MeController : ControllerBase
 
         var vatRates = await _vatRateRepository.Query()
             .Where(v => context.VatRateIds.Contains(v.VatRateId))
-            .Select(v => new VatRateResponse { VatRateId = v.VatRateId, Rate = v.Rate })
+            .Select(v => new VatRateResponse { VatRateId = v.VatRateId, Rate = v.Rate, IsExemption = v.IsExemption })
             .ToListAsync();
 
         var availableSeries = await _invoiceSeriesRepository.Query()

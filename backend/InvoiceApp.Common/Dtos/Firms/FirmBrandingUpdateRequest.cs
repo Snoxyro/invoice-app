@@ -6,4 +6,8 @@ public class FirmBrandingUpdateRequest
     public string? StampBase64 { get; set; }
     public string? AccentColorHex { get; set; }
     public string? FontFamily { get; set; }
+    public int? LogoWidthPx { get; set; }
+    public int? LogoHeightPx { get; set; }
+    public int? StampWidthPx { get; set; }
+    public int? StampHeightPx { get; set; }
 }
