@@ -10,6 +10,7 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
+  Palette,
   Receipt,
   Settings,
   ShieldCheck,
@@ -60,6 +61,9 @@ export function AppSidebar() {
       : null,
     hasPermission("Profiles", "Read")
       ? { href: "/profiles", label: t("profiles"), icon: ShieldCheck }
+      : null,
+    hasPermission("InvoiceSettings", "Read")
+      ? { href: "/invoice-settings", label: t("invoiceSettings"), icon: Palette }
       : null,
   ].filter((item): item is NavItem => item !== null);
 

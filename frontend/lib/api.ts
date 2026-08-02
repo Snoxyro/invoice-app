@@ -49,6 +49,7 @@ export async function apiFetchText(path: string, options: RequestInit = {}): Pro
   const token = getToken();
 
   const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);

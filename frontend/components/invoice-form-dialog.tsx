@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,11 @@ interface CustomerResponse {
   updatedDate: string | null;
 }
 
+interface InvoiceLineCustomValueResponse {
+  label: string;
+  value: string;
+}
+
 interface InvoiceLineResponse {
   invoiceLineId: number;
   itemName: string;
@@ -43,9 +48,8 @@ interface InvoiceLineResponse {
   price: number;
   vatRateId: number;
   vatRatePercentage: number;
-  subtotal: number;
-  vatAmount: number;
-  lineTotal: number;
+  exemptionReason: string | null;
+  customValues: InvoiceLineCustomValueResponse[];
 }
 
 interface InvoiceResponse {
@@ -64,6 +68,11 @@ interface InvoiceResponse {
   lines: InvoiceLineResponse[];
 }
 
+interface InvoiceCustomColumn {
+  key: string;
+  label: string;
+}
+
 interface LineItemState {
   key: string;
   itemName: string;
@@ -71,6 +80,10 @@ interface LineItemState {
   price: string;
   vatRateId: number | null;
   vatRatePercentage: number;
+  isExemptionRate: boolean;
+  exemptionReason: string;
+  customValues: Record<string, string>;
+  customValuesExpanded: boolean;
 }
 
 interface InvoiceFormDialogProps {
@@ -113,13 +126,32 @@ export function InvoiceFormDialog({
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerLabel, setCustomerLabel] = useState("");
   const [lines, setLines] = useState<LineItemState[]>([]);
+  const [customColumns, setCustomColumns] = useState<InvoiceCustomColumn[]>([]);
+  const [newColumnLabel, setNewColumnLabel] = useState("");
+  const [columnError, setColumnError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const defaultVatRateId = vatRates[0]?.vatRateId ?? null;
   const defaultVatRatePercentage = vatRates[0]?.rate ?? 0;
+  const defaultIsExemptionRate = vatRates[0]?.isExemption ?? false;
   const defaultSeriesId = availableInvoiceSeries[0]?.invoiceSeriesId ?? null;
+
+  function buildBlankLine(columns: InvoiceCustomColumn[]): LineItemState {
+    return {
+      key: generateKey(),
+      itemName: "",
+      quantity: "1",
+      price: "0",
+      vatRateId: defaultVatRateId,
+      vatRatePercentage: defaultVatRatePercentage,
+      isExemptionRate: defaultIsExemptionRate,
+      exemptionReason: "",
+      customValues: Object.fromEntries(columns.map((c) => [c.key, ""])),
+      customValuesExpanded: false,
+    };
+  }
 
   useEffect(() => {
     if (!open) {
@@ -127,37 +159,56 @@ export function InvoiceFormDialog({
     }
 
     setError(null);
+    setColumnError(null);
+    setNewColumnLabel("");
 
     if (invoice) {
       setInvoiceSeriesId(invoice.invoiceSeriesId);
       setInvoiceDate(invoice.invoiceDate.slice(0, 10));
       setCustomerId(invoice.customerId);
       setCustomerLabel(invoice.customerTitle);
+
+      const distinctLabels: string[] = [];
+      invoice.lines.forEach((line) => {
+        line.customValues.forEach((cv) => {
+          if (!distinctLabels.includes(cv.label)) {
+            distinctLabels.push(cv.label);
+          }
+        });
+      });
+
+      const columns = distinctLabels.map((label) => ({ key: generateKey(), label }));
+      setCustomColumns(columns);
+
       setLines(
-        invoice.lines.map((line) => ({
-          key: generateKey(),
-          itemName: line.itemName,
-          quantity: String(line.quantity),
-          price: String(line.price),
-          vatRateId: line.vatRateId,
-          vatRatePercentage: line.vatRatePercentage,
-        }))
+        invoice.lines.map((line) => {
+          const valuesByLabel = new Map(line.customValues.map((cv) => [cv.label, cv.value]));
+          const customValues: Record<string, string> = {};
+          columns.forEach((col) => {
+            customValues[col.key] = valuesByLabel.get(col.label) ?? "";
+          });
+
+          return {
+            key: generateKey(),
+            itemName: line.itemName,
+            quantity: String(line.quantity),
+            price: String(line.price),
+            vatRateId: line.vatRateId,
+            vatRatePercentage: line.vatRatePercentage,
+            isExemptionRate: vatRates.find((v) => v.vatRateId === line.vatRateId)?.isExemption ?? false,
+            exemptionReason: line.exemptionReason ?? "",
+            customValues,
+            customValuesExpanded: columns.some((col) => customValues[col.key]?.trim() !== ""),
+          };
+        })
       );
       return;
     }
 
     setInvoiceSeriesId(defaultSeriesId);
     setInvoiceDate("");
-    setLines([
-      {
-        key: generateKey(),
-        itemName: "",
-        quantity: "1",
-        price: "0",
-        vatRateId: defaultVatRateId,
-        vatRatePercentage: defaultVatRatePercentage,
-      },
-    ]);
+    setCustomColumns([]);
+    setLines([buildBlankLine([])]);
 
     if (lockedCustomer) {
       setCustomerId(lockedCustomer.customerId);
@@ -166,20 +217,11 @@ export function InvoiceFormDialog({
       setCustomerId(null);
       setCustomerLabel("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, invoice, lockedCustomer, defaultSeriesId]);
 
   function addLine() {
-    setLines((prev) => [
-      ...prev,
-      {
-        key: generateKey(),
-        itemName: "",
-        quantity: "1",
-        price: "0",
-        vatRateId: defaultVatRateId,
-        vatRatePercentage: defaultVatRatePercentage,
-      },
-    ]);
+    setLines((prev) => [...prev, buildBlankLine(customColumns)]);
   }
 
   function removeLine(key: string) {
@@ -191,12 +233,84 @@ export function InvoiceFormDialog({
   }
 
   function updateLineVatRate(key: string, vatRateId: number) {
-    const rate = vatRates.find((v) => v.vatRateId === vatRateId)?.rate ?? 0;
+    const option = vatRates.find((v) => v.vatRateId === vatRateId);
+    const rate = option?.rate ?? 0;
+    const isExemptionRate = option?.isExemption ?? false;
 
     setLines((prev) =>
       prev.map((line) =>
-        line.key === key ? { ...line, vatRateId, vatRatePercentage: rate } : line
+        line.key === key
+          ? {
+              ...line,
+              vatRateId,
+              vatRatePercentage: rate,
+              isExemptionRate,
+              exemptionReason: isExemptionRate ? line.exemptionReason : "",
+            }
+          : line
       )
+    );
+  }
+
+  function updateLineExemptionReason(key: string, value: string) {
+    setLines((prev) =>
+      prev.map((line) => (line.key === key ? { ...line, exemptionReason: value } : line))
+    );
+  }
+
+  function toggleLineCustomValues(key: string) {
+    setLines((prev) =>
+      prev.map((line) =>
+        line.key === key ? { ...line, customValuesExpanded: !line.customValuesExpanded } : line
+      )
+    );
+  }
+
+  function updateLineCustomValue(lineKey: string, columnKey: string, value: string) {
+    setLines((prev) =>
+      prev.map((line) =>
+        line.key === lineKey
+          ? { ...line, customValues: { ...line.customValues, [columnKey]: value } }
+          : line
+      )
+    );
+  }
+
+  function addCustomColumn() {
+    const label = newColumnLabel.trim();
+
+    if (label === "") {
+      return;
+    }
+
+    const isDuplicate = customColumns.some((c) => c.label.toLowerCase() === label.toLowerCase());
+
+    if (isDuplicate) {
+      setColumnError(t("customFieldDuplicateError"));
+      return;
+    }
+
+    const key = generateKey();
+    setCustomColumns((prev) => [...prev, { key, label }]);
+    setLines((prev) =>
+      prev.map((line) => ({
+        ...line,
+        customValues: { ...line.customValues, [key]: "" },
+        customValuesExpanded: true,
+      }))
+    );
+    setNewColumnLabel("");
+    setColumnError(null);
+  }
+
+  function removeCustomColumn(key: string) {
+    setCustomColumns((prev) => prev.filter((c) => c.key !== key));
+    setLines((prev) =>
+      prev.map((line) => {
+        const rest = { ...line.customValues };
+        delete rest[key];
+        return { ...line, customValues: rest };
+      })
     );
   }
 
@@ -270,6 +384,11 @@ export function InvoiceFormDialog({
       return;
     }
 
+    if (lines.some((line) => line.isExemptionRate && line.exemptionReason.trim() === "")) {
+      setError(t("exemptionReasonRequiredError"));
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -282,6 +401,10 @@ export function InvoiceFormDialog({
         quantity: Number(line.quantity),
         price: Number(line.price),
         vatRateId: line.vatRateId,
+        exemptionReason: line.isExemptionRate ? line.exemptionReason.trim() : null,
+        customValues: customColumns
+          .filter((col) => (line.customValues[col.key] ?? "").trim() !== "")
+          .map((col) => ({ label: col.label, value: line.customValues[col.key] })),
       })),
     };
 
@@ -392,10 +515,59 @@ export function InvoiceFormDialog({
               <p className="text-sm text-destructive">{t("noActiveSeriesError")}</p>
             )}
 
+            <div className="flex flex-col gap-2 rounded-md border p-3">
+              <Label>{t("customColumnsLabel")}</Label>
+              <p className="text-xs text-muted-foreground">{t("customColumnsHint")}</p>
+
+              {customColumns.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {customColumns.map((col) => (
+                    <span
+                      key={col.key}
+                      className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs"
+                    >
+                      {col.label}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomColumn(col.key)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Input
+                  className="flex-1"
+                  value={newColumnLabel}
+                  onChange={(e) => {
+                    setNewColumnLabel(e.target.value);
+                    setColumnError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCustomColumn();
+                    }
+                  }}
+                  placeholder={t("newColumnPlaceholder")}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addCustomColumn}>
+                  <Plus />
+                  {t("addColumnButton")}
+                </Button>
+              </div>
+
+              {columnError && <p className="text-xs text-destructive">{columnError}</p>}
+            </div>
+
             <div className="flex flex-col gap-2">
               <Label>{t("linesLabel")}</Label>
 
-              <div className="flex gap-2 text-xs text-muted-foreground">
+              <div className="flex gap-2 pr-9 text-xs text-muted-foreground">
                 <span className="flex-1">{t("lineItemName")}</span>
                 <span className="w-20">{t("lineQuantity")}</span>
                 <span className="w-24">{t("linePrice")}</span>
@@ -409,58 +581,120 @@ export function InvoiceFormDialog({
                 const hasCurrentRateInList = vatRates.some((v) => v.vatRateId === line.vatRateId);
                 const selectOptions =
                   line.vatRateId !== null && !hasCurrentRateInList
-                    ? [...vatRates, { vatRateId: line.vatRateId, rate: line.vatRatePercentage }]
+                    ? [
+                        ...vatRates,
+                        { vatRateId: line.vatRateId, rate: line.vatRatePercentage, isExemption: line.isExemptionRate },
+                      ]
                     : vatRates;
+                const filledValueCount = customColumns.filter(
+                  (col) => (line.customValues[col.key] ?? "").trim() !== ""
+                ).length;
 
                 return (
-                  <div key={line.key} className="flex items-center gap-2">
-                    <Input
-                      className="flex-1"
-                      value={line.itemName}
-                      onChange={(e) => updateLine(line.key, "itemName", e.target.value)}
-                    />
-                    <Input
-                      className="w-20"
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(line.key, "quantity", e.target.value)}
-                    />
-                    <Input
-                      className="w-24"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={line.price}
-                      onChange={(e) => updateLine(line.key, "price", e.target.value)}
-                    />
-                    <Select
-                      value={line.vatRateId !== null ? String(line.vatRateId) : null}
-                      onValueChange={(value) => value && updateLineVatRate(line.key, Number(value))}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue>
-                          {line.vatRateId !== null ? `%${line.vatRatePercentage}` : ""}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        {selectOptions.map((v) => (
-                          <SelectItem key={v.vatRateId} value={String(v.vatRateId)}>
-                            %{v.rate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="w-24 text-right text-sm">{formatAmount(lineTotal)}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeLine(line.key)}
-                    >
-                      <Trash2 />
-                    </Button>
+                  <div key={line.key} className="flex flex-col gap-2 rounded-md border p-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        className="flex-1"
+                        value={line.itemName}
+                        onChange={(e) => updateLine(line.key, "itemName", e.target.value)}
+                        placeholder={t("lineItemName")}
+                      />
+                      <Input
+                        className="w-20"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={line.quantity}
+                        onChange={(e) => updateLine(line.key, "quantity", e.target.value)}
+                      />
+                      <Input
+                        className="w-24"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.price}
+                        onChange={(e) => updateLine(line.key, "price", e.target.value)}
+                      />
+                      <Select
+                        value={line.vatRateId !== null ? String(line.vatRateId) : null}
+                        onValueChange={(value) => value && updateLineVatRate(line.key, Number(value))}
+                      >
+                        <SelectTrigger className="w-28">
+                          <SelectValue>
+                            {line.vatRateId !== null ? `%${line.vatRatePercentage}` : ""}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          {selectOptions.map((v) => (
+                            <SelectItem key={v.vatRateId} value={String(v.vatRateId)}>
+                              %{v.rate}
+                              {v.isExemption ? ` — ${t("exemptionRateSuffix")}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="w-24 text-right text-sm">{formatAmount(lineTotal)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeLine(line.key)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+
+                    {line.isExemptionRate && (
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor={`exemption-${line.key}`} className="text-xs">
+                          {t("exemptionReasonLabel")} <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id={`exemption-${line.key}`}
+                          value={line.exemptionReason}
+                          onChange={(e) => updateLineExemptionReason(line.key, e.target.value)}
+                          placeholder={t("exemptionReasonPlaceholder")}
+                          required
+                        />
+                      </div>
+                    )}
+
+                    {customColumns.length > 0 && (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => toggleLineCustomValues(line.key)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          {line.customValuesExpanded ? (
+                            <ChevronDown className="size-3.5" />
+                          ) : (
+                            <ChevronRight className="size-3.5" />
+                          )}
+                          {t("customFieldsToggle")}
+                          {filledValueCount > 0 && (
+                            <span className="rounded bg-muted px-1.5 py-0.5">{filledValueCount}</span>
+                          )}
+                        </button>
+
+                        {line.customValuesExpanded && (
+                          <div className="mt-2 grid grid-cols-2 gap-2 border-l-2 pl-3">
+                            {customColumns.map((col) => (
+                              <div key={col.key} className="flex flex-col gap-1">
+                                <Label className="text-xs text-muted-foreground">{col.label}</Label>
+                                <Input
+                                  value={line.customValues[col.key] ?? ""}
+                                  onChange={(e) =>
+                                    updateLineCustomValue(line.key, col.key, e.target.value)
+                                  }
+                                  placeholder={t("customFieldValuePlaceholder")}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

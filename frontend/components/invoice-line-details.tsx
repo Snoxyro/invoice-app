@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
+
+interface InvoiceLineCustomValueResponse {
+  label: string;
+  value: string;
+}
 
 interface InvoiceLineResponse {
   invoiceLineId: number;
@@ -11,6 +16,8 @@ interface InvoiceLineResponse {
   price: number;
   vatRateId: number;
   vatRatePercentage: number;
+  exemptionReason: string | null;
+  customValues: InvoiceLineCustomValueResponse[];
   subtotal: number;
   vatAmount: number;
   lineTotal: number;
@@ -94,15 +101,39 @@ export function InvoiceLineDetails({ invoiceId }: InvoiceLineDetailsProps) {
           </tr>
         </thead>
         <tbody>
-          {invoice.lines.map((line) => (
-            <tr key={line.invoiceLineId} className="border-b last:border-0">
-              <td className="py-1">{line.itemName}</td>
-              <td className="py-1">{line.quantity}</td>
-              <td className="py-1">{formatAmount(line.price)}</td>
-              <td className="py-1">%{line.vatRatePercentage}</td>
-              <td className="py-1 text-right">{formatAmount(line.lineTotal)}</td>
-            </tr>
-          ))}
+          {invoice.lines.map((line) => {
+            const hasExtra = Boolean(line.exemptionReason) || line.customValues.length > 0;
+
+            return (
+              <Fragment key={line.invoiceLineId}>
+                <tr className={hasExtra ? "" : "border-b last:border-0"}>
+                  <td className="py-1">{line.itemName}</td>
+                  <td className="py-1">{line.quantity}</td>
+                  <td className="py-1">{formatAmount(line.price)}</td>
+                  <td className="py-1">%{line.vatRatePercentage}</td>
+                  <td className="py-1 text-right">{formatAmount(line.lineTotal)}</td>
+                </tr>
+                {hasExtra && (
+                  <tr className="border-b last:border-0">
+                    <td colSpan={5} className="pb-1.5 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {line.exemptionReason && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-400">
+                            {t("exemptionReasonBadge")}: {line.exemptionReason}
+                          </span>
+                        )}
+                        {line.customValues.map((cv, index) => (
+                          <span key={index} className="rounded bg-muted px-1.5 py-0.5">
+                            {cv.label}: {cv.value}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
 

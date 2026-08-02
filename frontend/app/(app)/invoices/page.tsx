@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Eye, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Send, Trash2, Undo2 } from "lucide-react";
 import { usePagedList } from "@/hooks/usePagedList";
 import { PagedTable, type PagedTableColumn } from "@/components/paged-table";
 import { NameAvatar } from "@/components/name-avatar";
@@ -28,6 +28,7 @@ import { usePermissions } from "@/contexts/PermissionContext";
 import type { PagedResult } from "@/lib/paging";
 
 type InvoiceStatus = "Draft" | "Sent";
+type InvoiceTypeCode = "Satis" | "Iade";
 
 interface InvoiceListItemResponse {
   invoiceId: number;
@@ -41,6 +42,7 @@ interface InvoiceListItemResponse {
   branchId: number | null;
   branchName: string | null;
   status: InvoiceStatus;
+  invoiceTypeCode: InvoiceTypeCode;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -55,6 +57,11 @@ interface InvoiceListResponse extends PagedResult<InvoiceListItemResponse> {
   totals: InvoiceTotalsResponse;
 }
 
+interface InvoiceLineCustomValueResponse {
+  label: string;
+  value: string;
+}
+
 interface InvoiceLineResponse {
   invoiceLineId: number;
   itemName: string;
@@ -62,6 +69,8 @@ interface InvoiceLineResponse {
   price: number;
   vatRateId: number;
   vatRatePercentage: number;
+  exemptionReason: string | null;
+  customValues: InvoiceLineCustomValueResponse[];
   subtotal: number;
   vatAmount: number;
   lineTotal: number;
@@ -78,6 +87,8 @@ interface InvoiceResponse {
   customerTitle: string;
   invoiceSeriesId: number;
   status: InvoiceStatus;
+  invoiceTypeCode: InvoiceTypeCode;
+  originalInvoiceId: number | null;
   createdDate: string;
   updatedDate: string | null;
   lines: InvoiceLineResponse[];
@@ -116,6 +127,8 @@ export default function InvoicesPage() {
   const [previewInvoiceId, setPreviewInvoiceId] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<"view" | "send">("view");
 
+  const [returningInvoice, setReturningInvoice] = useState<InvoiceListItemResponse | null>(null);
+
   const canCreate = hasPermission("Invoices", "Create");
   const canUpdate = hasPermission("Invoices", "Update");
   const canDelete = hasPermission("Invoices", "Delete");
@@ -149,6 +162,23 @@ export default function InvoicesPage() {
     setPreviewOpen(true);
   }
 
+  async function handleCreateReturn() {
+    if (!returningInvoice) {
+      return;
+    }
+
+    const returnInvoice = await apiFetch<InvoiceResponse>(
+      `/api/Invoices/${returningInvoice.invoiceId}/create-return`,
+      { method: "POST" }
+    );
+
+    setReturningInvoice(null);
+    await list.refetch();
+
+    setEditingInvoice(returnInvoice);
+    setFormOpen(true);
+  }
+
   function handleStatusFilterChange(value: string | null) {
     setStatusFilter(value === "all" || value === null ? "" : value);
   }
@@ -173,16 +203,24 @@ export default function InvoicesPage() {
     {
       key: "status",
       header: t("columnStatus"),
-      render: (i) =>
-        i.status === "Sent" ? (
-          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-            {t("statusSent")}
-          </span>
-        ) : (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-            {t("statusDraft")}
-          </span>
-        ),
+      render: (i) => (
+        <div className="flex items-center gap-1">
+          {i.status === "Sent" ? (
+            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+              {t("statusSent")}
+            </span>
+          ) : (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              {t("statusDraft")}
+            </span>
+          )}
+          {i.invoiceTypeCode === "Iade" && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-400">
+              {t("typeReturnBadge")}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "branchName",
@@ -218,6 +256,7 @@ export default function InvoicesPage() {
       header: t("columnActions"),
       render: (i) => {
         const isDraft = i.status === "Draft";
+        const canReturn = canCreate && i.status === "Sent" && i.invoiceTypeCode === "Satis";
 
         return (
           <div className="flex items-center gap-1">
@@ -242,6 +281,16 @@ export default function InvoicesPage() {
                 onClick={() => openEditForm(i)}
               >
                 <Pencil />
+              </Button>
+            )}
+            {canReturn && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title={t("returnButton")}
+                onClick={() => setReturningInvoice(i)}
+              >
+                <Undo2 />
               </Button>
             )}
             {canDelete && (
@@ -397,6 +446,22 @@ export default function InvoicesPage() {
             await apiFetch(`/api/Invoices/${deletingInvoice.invoiceId}`, { method: "DELETE" });
             list.refetch();
           }}
+        />
+
+        <ConfirmDialog
+          open={returningInvoice !== null}
+          onOpenChange={(open) => !open && setReturningInvoice(null)}
+          title={t("returnConfirmTitle")}
+          description={
+            returningInvoice
+              ? t("returnConfirmDescription", {
+                  invoiceNumber: returningInvoice.invoiceNumber ?? t("draftNumberPlaceholder"),
+                })
+              : ""
+          }
+          confirmLabel={t("returnButton")}
+          destructive={false}
+          onConfirm={handleCreateReturn}
         />
       </div>
     </PermissionGuard>

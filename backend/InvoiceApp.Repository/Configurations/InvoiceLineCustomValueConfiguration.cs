@@ -10,7 +10,7 @@ public class InvoiceLineCustomValueConfiguration : IEntityTypeConfiguration<Invo
     {
         builder.HasKey(v => v.InvoiceLineCustomValueId);
 
-        builder.Property(v => v.ColumnLabel).IsRequired().HasMaxLength(100);
+        builder.Property(v => v.Label).IsRequired().HasMaxLength(100);
         builder.Property(v => v.Value).IsRequired().HasMaxLength(500);
 
         builder.HasOne(v => v.InvoiceLine)
@@ -18,12 +18,6 @@ public class InvoiceLineCustomValueConfiguration : IEntityTypeConfiguration<Invo
             .HasForeignKey(v => v.InvoiceLineId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(v => v.ColumnDefinition)
-            .WithMany()
-            .HasForeignKey(v => v.ColumnDefinitionId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasIndex(v => v.InvoiceLineId);
-        builder.HasIndex(v => v.ColumnDefinitionId);
     }
 }

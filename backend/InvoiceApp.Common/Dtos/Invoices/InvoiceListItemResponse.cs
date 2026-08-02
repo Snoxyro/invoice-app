@@ -15,6 +15,7 @@ public class InvoiceListItemResponse
     public int? BranchId { get; set; }
     public string? BranchName { get; set; }
     public InvoiceStatus Status { get; set; }
+    public InvoiceTypeCode InvoiceTypeCode { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
 }

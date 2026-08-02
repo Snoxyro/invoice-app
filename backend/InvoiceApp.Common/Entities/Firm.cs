@@ -19,5 +19,4 @@ public class Firm : BaseEntity
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     public ICollection<Branch> Branches { get; set; } = new List<Branch>();
     public ICollection<BankAccount> BankAccounts { get; set; } = new List<BankAccount>();
-    public ICollection<InvoiceLineCustomColumnDefinition> CustomColumnDefinitions { get; set; } = new List<InvoiceLineCustomColumnDefinition>();
 }

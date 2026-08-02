@@ -22,7 +22,6 @@ public class AppDbContext : DbContext
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<InvoiceSeries> InvoiceSeries => Set<InvoiceSeries>();
     public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
-    public DbSet<InvoiceLineCustomColumnDefinition> InvoiceLineCustomColumnDefinitions => Set<InvoiceLineCustomColumnDefinition>();
     public DbSet<InvoiceLineCustomValue> InvoiceLineCustomValues => Set<InvoiceLineCustomValue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

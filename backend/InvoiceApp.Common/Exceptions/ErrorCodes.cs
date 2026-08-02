@@ -44,10 +44,9 @@ public static class ErrorCodes
     public const string SeriesPrefixInvalidFormat = "SERIES_PREFIX_INVALID_FORMAT";
     public const string SeriesLastActiveCannotDeactivate = "SERIES_LAST_ACTIVE_CANNOT_DEACTIVATE";
     public const string BankAccountNotFound = "BANK_ACCOUNT_NOT_FOUND";
-    public const string CustomColumnNotFound = "CUSTOM_COLUMN_NOT_FOUND";
-    public const string CustomColumnLabelAlreadyExists = "CUSTOM_COLUMN_LABEL_ALREADY_EXISTS";
-    public const string CustomColumnInUseCannotDelete = "CUSTOM_COLUMN_IN_USE_CANNOT_DELETE";
     public const string ExemptionReasonRequired = "EXEMPTION_REASON_REQUIRED";
+    public const string InvalidCustomValue = "INVALID_CUSTOM_VALUE";
+    public const string DuplicateCustomValueLabel = "DUPLICATE_CUSTOM_VALUE_LABEL";
     public const string OriginalInvoiceNotSentCannotReturn = "ORIGINAL_INVOICE_NOT_SENT_CANNOT_RETURN";
     public const string CannotReturnAReturnInvoice = "CANNOT_RETURN_A_RETURN_INVOICE";
     public const string InvalidFontFamily = "INVALID_FONT_FAMILY";
@@ -56,6 +55,5 @@ public static class ErrorCodes
     public const string InvalidStampDimension = "INVALID_STAMP_DIMENSION";
     public const string InvalidIbanFormat = "INVALID_IBAN_FORMAT";
     public const string InvalidCurrencyFormat = "INVALID_CURRENCY_FORMAT";
-    public const string InvalidCustomColumnSelection = "INVALID_CUSTOM_COLUMN_SELECTION";
     public const string UnexpectedError = "UNEXPECTED_ERROR";
 }

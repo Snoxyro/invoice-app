@@ -22,6 +22,7 @@ public class FirmService : IFirmService
     private const string SampleCustomerTaxNumber = "1234567890";
     private const string SampleCustomerAddress = "Örnek Mahallesi, Örnek Caddesi No:1, İstanbul";
     private const string SampleLineItemName = "Örnek Ürün / Hizmet";
+    private const string SampleCustomFieldLabel = "Örnek Alan";
     private const string SampleCustomValueText = "Örnek Değer";
     private const int MinPixelDimension = 1;
     private const int MaxPixelDimension = 255;
@@ -39,7 +40,6 @@ public class FirmService : IFirmService
     private readonly IRepository<Customer> _customerRepository;
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Branch> _branchRepository;
-    private readonly IRepository<InvoiceLineCustomColumnDefinition> _customColumnRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IPermissionService _permissionService;
     private readonly IEInvoiceTransformer _eInvoiceTransformer;
@@ -53,7 +53,6 @@ public class FirmService : IFirmService
         IRepository<Customer> customerRepository,
         IRepository<Invoice> invoiceRepository,
         IRepository<Branch> branchRepository,
-        IRepository<InvoiceLineCustomColumnDefinition> customColumnRepository,
         IPasswordHasher passwordHasher,
         IPermissionService permissionService,
         IEInvoiceTransformer eInvoiceTransformer)
@@ -66,7 +65,6 @@ public class FirmService : IFirmService
         _customerRepository = customerRepository;
         _invoiceRepository = invoiceRepository;
         _branchRepository = branchRepository;
-        _customColumnRepository = customColumnRepository;
         _passwordHasher = passwordHasher;
         _permissionService = permissionService;
         _eInvoiceTransformer = eInvoiceTransformer;
@@ -302,11 +300,6 @@ public class FirmService : IFirmService
                 ErrorCodes.FirmNotFound,
                 new Dictionary<string, string> { ["firmId"] = firmId.ToString() });
 
-        var activeColumns = await _customColumnRepository.Query()
-            .Where(c => c.FirmId == firmId && c.IsActive)
-            .OrderBy(c => c.DisplayOrder)
-            .ToListAsync();
-
         var headquarters = await _branchRepository.Query()
             .Where(b => b.FirmId == firmId)
             .OrderByDescending(b => b.IsHeadquarters)
@@ -345,12 +338,10 @@ public class FirmService : IFirmService
             Price = 1000m,
             VatRatePercentage = 20m,
             CreatedDate = now,
-            CustomValues = activeColumns.Select(c => new InvoiceLineCustomValue
+            CustomValues = new List<InvoiceLineCustomValue>
             {
-                ColumnDefinitionId = c.InvoiceLineCustomColumnDefinitionId,
-                ColumnLabel = c.Label,
-                Value = SampleCustomValueText
-            }).ToList()
+                new() { Label = SampleCustomFieldLabel, Value = SampleCustomValueText, DisplayOrder = 0 }
+            }
         };
 
         var previewInvoice = new Invoice

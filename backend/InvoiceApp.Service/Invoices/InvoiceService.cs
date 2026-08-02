@@ -20,7 +20,6 @@ public class InvoiceService : IInvoiceService
     private readonly IRepository<VatRate> _vatRateRepository;
     private readonly IRepository<InvoiceSeries> _invoiceSeriesRepository;
     private readonly IRepository<Branch> _branchRepository;
-    private readonly IRepository<InvoiceLineCustomColumnDefinition> _customColumnRepository;
     private readonly IPermissionService _permissionService;
     private readonly IEInvoiceTransformer _eInvoiceTransformer;
     private readonly IPdfRenderer _pdfRenderer;
@@ -32,7 +31,6 @@ public class InvoiceService : IInvoiceService
         IRepository<VatRate> vatRateRepository,
         IRepository<InvoiceSeries> invoiceSeriesRepository,
         IRepository<Branch> branchRepository,
-        IRepository<InvoiceLineCustomColumnDefinition> customColumnRepository,
         IPermissionService permissionService,
         IEInvoiceTransformer eInvoiceTransformer,
         IPdfRenderer pdfRenderer,
@@ -43,7 +41,6 @@ public class InvoiceService : IInvoiceService
         _vatRateRepository = vatRateRepository;
         _invoiceSeriesRepository = invoiceSeriesRepository;
         _branchRepository = branchRepository;
-        _customColumnRepository = customColumnRepository;
         _permissionService = permissionService;
         _eInvoiceTransformer = eInvoiceTransformer;
         _pdfRenderer = pdfRenderer;
@@ -61,7 +58,7 @@ public class InvoiceService : IInvoiceService
 
         var vatRates = await GetVatRatesForLinesAsync(request.Lines);
         ValidateExemptionReasons(request.Lines, vatRates);
-        var columnDefinitions = await GetOwnedColumnDefinitionsAsync(currentFirmId, request.Lines);
+        ValidateCustomValues(request.Lines);
 
         var invoice = new Invoice
         {
@@ -72,7 +69,7 @@ public class InvoiceService : IInvoiceService
             InvoiceSeriesId = series.InvoiceSeriesId,
             Status = InvoiceStatus.Draft,
             CreatedByUserId = currentUserId,
-            InvoiceLines = BuildInvoiceLines(request.Lines, vatRates, columnDefinitions, currentUserId)
+            InvoiceLines = BuildInvoiceLines(request.Lines, vatRates, currentUserId)
         };
 
         ApplyTotals(invoice);
@@ -88,7 +85,7 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceResponse> UpdateAsync(int currentUserId, int invoiceId, InvoiceUpdateRequest request)
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
-        var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
+        _ = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
         var invoice = await GetOwnedInvoiceAsync(context, invoiceId, includeLines: true, includeBranch: true);
 
@@ -102,7 +99,7 @@ public class InvoiceService : IInvoiceService
 
         var vatRates = await GetVatRatesForLinesAsync(request.Lines);
         ValidateExemptionReasons(request.Lines, vatRates);
-        var columnDefinitions = await GetOwnedColumnDefinitionsAsync(currentFirmId, request.Lines);
+        ValidateCustomValues(request.Lines);
 
         invoice.CustomerId = request.CustomerId;
         invoice.InvoiceDate = request.InvoiceDate;
@@ -110,7 +107,7 @@ public class InvoiceService : IInvoiceService
 
         invoice.InvoiceLines.Clear();
 
-        foreach (var line in BuildInvoiceLines(request.Lines, vatRates, columnDefinitions, currentUserId))
+        foreach (var line in BuildInvoiceLines(request.Lines, vatRates, currentUserId))
         {
             invoice.InvoiceLines.Add(line);
         }
@@ -228,9 +225,9 @@ public class InvoiceService : IInvoiceService
                 UserId = currentUserId,
                 CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValue
                 {
-                    ColumnDefinitionId = cv.ColumnDefinitionId,
-                    ColumnLabel = cv.ColumnLabel,
-                    Value = cv.Value
+                    Label = cv.Label,
+                    Value = cv.Value,
+                    DisplayOrder = cv.DisplayOrder
                 }).ToList()
             }).ToList()
         };
@@ -385,6 +382,7 @@ public class InvoiceService : IInvoiceService
                 BranchId = i.BranchId,
                 BranchName = i.Branch != null ? i.Branch.Name : null,
                 Status = i.Status,
+                InvoiceTypeCode = i.InvoiceTypeCode,
                 CreatedDate = i.CreatedDate,
                 UpdatedDate = i.UpdatedDate
             }).ToList(),
@@ -439,36 +437,30 @@ public class InvoiceService : IInvoiceService
         }
     }
 
-    private async Task<Dictionary<int, InvoiceLineCustomColumnDefinition>> GetOwnedColumnDefinitionsAsync(
-        int firmId, List<InvoiceLineRequest> lines)
+    private static void ValidateCustomValues(List<InvoiceLineRequest> lines)
     {
-        var columnDefinitionIds = lines
-            .SelectMany(l => l.CustomValues)
-            .Select(cv => cv.ColumnDefinitionId)
-            .Distinct()
-            .ToList();
-
-        if (columnDefinitionIds.Count == 0)
+        foreach (var line in lines)
         {
-            return new Dictionary<int, InvoiceLineCustomColumnDefinition>();
+            if (line.CustomValues.Any(cv => string.IsNullOrWhiteSpace(cv.Label) || string.IsNullOrWhiteSpace(cv.Value)))
+            {
+                throw new BusinessRuleException(ErrorCodes.InvalidCustomValue);
+            }
+
+            var duplicateLabelExists = line.CustomValues
+                .Select(cv => cv.Label.Trim())
+                .GroupBy(label => label, StringComparer.OrdinalIgnoreCase)
+                .Any(g => g.Count() > 1);
+
+            if (duplicateLabelExists)
+            {
+                throw new BusinessRuleException(ErrorCodes.DuplicateCustomValueLabel);
+            }
         }
-
-        var columnDefinitions = await _customColumnRepository.Query()
-            .Where(c => columnDefinitionIds.Contains(c.InvoiceLineCustomColumnDefinitionId) && c.FirmId == firmId)
-            .ToDictionaryAsync(c => c.InvoiceLineCustomColumnDefinitionId);
-
-        if (columnDefinitions.Count != columnDefinitionIds.Count)
-        {
-            throw new BusinessRuleException(ErrorCodes.InvalidCustomColumnSelection);
-        }
-
-        return columnDefinitions;
     }
 
     private static List<InvoiceLine> BuildInvoiceLines(
         List<InvoiceLineRequest> lines,
         Dictionary<int, VatRate> vatRates,
-        Dictionary<int, InvoiceLineCustomColumnDefinition> columnDefinitions,
         int currentUserId)
     {
         return lines.Select(l => new InvoiceLine
@@ -480,11 +472,11 @@ public class InvoiceService : IInvoiceService
             VatRatePercentage = vatRates[l.VatRateId].Rate,
             ExemptionReason = vatRates[l.VatRateId].IsExemption ? l.ExemptionReason : null,
             UserId = currentUserId,
-            CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValue
+            CustomValues = l.CustomValues.Select((cv, index) => new InvoiceLineCustomValue
             {
-                ColumnDefinitionId = cv.ColumnDefinitionId,
-                ColumnLabel = columnDefinitions[cv.ColumnDefinitionId].Label,
-                Value = cv.Value
+                Label = cv.Label.Trim(),
+                Value = cv.Value,
+                DisplayOrder = index
             }).ToList()
         }).ToList();
     }
@@ -681,12 +673,13 @@ public class InvoiceService : IInvoiceService
                 VatRateId = l.VatRateId,
                 VatRatePercentage = l.VatRatePercentage,
                 ExemptionReason = l.ExemptionReason,
-                CustomValues = l.CustomValues.Select(cv => new InvoiceLineCustomValueResponse
-                {
-                    ColumnDefinitionId = cv.ColumnDefinitionId,
-                    ColumnLabel = cv.ColumnLabel,
-                    Value = cv.Value
-                }).ToList()
+                CustomValues = l.CustomValues
+                    .OrderBy(cv => cv.DisplayOrder)
+                    .Select(cv => new InvoiceLineCustomValueResponse
+                    {
+                        Label = cv.Label,
+                        Value = cv.Value
+                    }).ToList()
             }).ToList()
         };
     }

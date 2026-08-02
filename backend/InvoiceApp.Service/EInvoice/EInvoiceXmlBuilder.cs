@@ -341,10 +341,10 @@ public static class EInvoiceXmlBuilder
                 cac + "Item",
                 new XElement(cbc + "Name", line.ItemName),
                 line.CustomValues
-                    .OrderBy(cv => cv.ColumnDefinitionId)
+                    .OrderBy(cv => cv.DisplayOrder)
                     .Select(cv => new XElement(
                         cac + "AdditionalItemProperty",
-                        new XElement(cbc + "Name", cv.ColumnLabel),
+                        new XElement(cbc + "Name", cv.Label),
                         new XElement(cbc + "Value", cv.Value)))),
             new XElement(
                 cac + "Price",
