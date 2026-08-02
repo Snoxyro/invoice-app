@@ -14,8 +14,15 @@ public static class EInvoiceXmlBuilder
     private const string CbcNamespaceUri = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
     private const string ExtNamespaceUri = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
     private const string DsNamespaceUri = "http://www.w3.org/2000/09/xmldsig#";
+    private const string AppNamespaceUri = "urn:invoiceapp:extensions:v1";
     private const string DraftInvoiceNumberPlaceholder = "(taslak — gönderildiğinde numara atanacak)";
     private const string VatTaxTypeCode = "0015";
+    private const string SalesInvoiceTypeCodeText = "SATIS";
+    private const string ReturnInvoiceTypeCodeText = "IADE";
+    private const string ReturnDocumentTypeCode = "IADE";
+    private const string SimulatedExemptionReasonCode = "350";
+    private const string BankTransferPaymentMeansCode = "30";
+    private const string DefaultCurrencyCode = "TRY";
 
     public static byte[] Build(Invoice invoice)
     {
@@ -24,6 +31,7 @@ public static class EInvoiceXmlBuilder
         XNamespace cbc = CbcNamespaceUri;
         XNamespace ext = ExtNamespaceUri;
         XNamespace ds = DsNamespaceUri;
+        XNamespace app = AppNamespaceUri;
 
         var lines = invoice.InvoiceLines.ToList();
 
@@ -37,7 +45,8 @@ public static class EInvoiceXmlBuilder
             new XAttribute(XNamespace.Xmlns + "cbc", cbc.NamespaceName),
             new XAttribute(XNamespace.Xmlns + "ext", ext.NamespaceName),
             new XAttribute(XNamespace.Xmlns + "ds", ds.NamespaceName),
-            BuildExtensionsPlaceholder(ext, ds),
+            new XAttribute(XNamespace.Xmlns + "app", app.NamespaceName),
+            BuildExtensions(ext, ds, app, invoice),
             new XElement(cbc + "UBLVersionID", "2.1"),
             new XElement(cbc + "CustomizationID", "TR1.2"),
             new XElement(cbc + "ProfileID", "TICARIFATURA"),
@@ -45,11 +54,13 @@ public static class EInvoiceXmlBuilder
             new XElement(cbc + "UUID", BuildDeterministicUuid(invoice.InvoiceId)),
             new XElement(cbc + "IssueDate", invoice.InvoiceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
             new XElement(cbc + "IssueTime", invoice.CreatedDate.ToString("HH:mm:ss", CultureInfo.InvariantCulture)),
-            new XElement(cbc + "InvoiceTypeCode", "SATIS"),
+            new XElement(cbc + "InvoiceTypeCode", GetInvoiceTypeCodeText(invoice.InvoiceTypeCode)),
             new XElement(cbc + "DocumentCurrencyCode", "TRY"),
             new XElement(cbc + "LineCountNumeric", lines.Count.ToString(CultureInfo.InvariantCulture)),
+            BuildBillingReference(cac, cbc, invoice),
             BuildSupplierParty(cac, cbc, invoice),
             BuildCustomerParty(cac, cbc, invoice.Customer),
+            BuildPaymentMeansList(cac, cbc, invoice.Firm),
             BuildTaxTotal(cac, cbc, lines),
             BuildLegalMonetaryTotal(cac, cbc, invoice),
             lines.Select((line, index) => BuildInvoiceLine(cac, cbc, line, index + 1)));
@@ -72,18 +83,116 @@ public static class EInvoiceXmlBuilder
         return memoryStream.ToArray();
     }
 
-    private static XElement BuildExtensionsPlaceholder(XNamespace ext, XNamespace ds)
+    private static XElement BuildExtensions(XNamespace ext, XNamespace ds, XNamespace app, Invoice invoice)
+    {
+        var extensions = new XElement(ext + "UBLExtensions", BuildSignatureExtension(ext, ds));
+
+        var appExtensionContent = BuildAppExtensionContent(app, invoice.Firm);
+
+        if (appExtensionContent is not null)
+        {
+            extensions.Add(
+                new XElement(
+                    ext + "UBLExtension",
+                    new XElement(ext + "ExtensionContent", appExtensionContent)));
+        }
+
+        return extensions;
+    }
+
+    private static XElement BuildSignatureExtension(XNamespace ext, XNamespace ds)
     {
         return new XElement(
-            ext + "UBLExtensions",
+            ext + "UBLExtension",
             new XElement(
-                ext + "UBLExtension",
+                ext + "ExtensionContent",
                 new XElement(
-                    ext + "ExtensionContent",
-                    new XElement(
-                        ds + "Signature",
-                        new XAttribute("Id", "Placeholder-Signature"),
-                        new XElement(ds + "SignatureValue", "SIMULATED-NOT-A-REAL-SIGNATURE")))));
+                    ds + "Signature",
+                    new XAttribute("Id", "Placeholder-Signature"),
+                    new XElement(ds + "SignatureValue", "SIMULATED-NOT-A-REAL-SIGNATURE"))));
+    }
+
+    private static XElement? BuildAppExtensionContent(XNamespace app, Firm firm)
+    {
+        var branding = BuildBrandingElement(app, firm);
+
+        return branding is null ? null : new XElement(app + "InvoiceAppExtension", branding);
+    }
+
+    private static XElement? BuildBrandingElement(XNamespace app, Firm firm)
+    {
+        var hasBranding = !string.IsNullOrWhiteSpace(firm.LogoBase64)
+            || !string.IsNullOrWhiteSpace(firm.StampBase64)
+            || !string.IsNullOrWhiteSpace(firm.AccentColorHex)
+            || !string.IsNullOrWhiteSpace(firm.FontFamily);
+
+        if (!hasBranding)
+        {
+            return null;
+        }
+
+        return new XElement(
+            app + "Branding",
+            string.IsNullOrWhiteSpace(firm.LogoBase64) ? null : new XElement(app + "LogoBase64", firm.LogoBase64),
+            string.IsNullOrWhiteSpace(firm.StampBase64) ? null : new XElement(app + "StampBase64", firm.StampBase64),
+            string.IsNullOrWhiteSpace(firm.AccentColorHex) ? null : new XElement(app + "AccentColorHex", firm.AccentColorHex),
+            string.IsNullOrWhiteSpace(firm.FontFamily) ? null : new XElement(app + "FontFamily", firm.FontFamily));
+    }
+
+    private static IEnumerable<XElement> BuildPaymentMeansList(XNamespace cac, XNamespace cbc, Firm firm)
+    {
+        var bankAccounts = firm.BankAccounts.ToList();
+
+        if (bankAccounts.Count == 0)
+        {
+            return Enumerable.Empty<XElement>();
+        }
+
+        var primary = bankAccounts.FirstOrDefault(b => b.Currency == DefaultCurrencyCode)
+            ?? bankAccounts.OrderBy(b => b.BankAccountId).First();
+
+        var ordered = new List<BankAccount> { primary };
+        ordered.AddRange(bankAccounts
+            .Where(b => b.BankAccountId != primary.BankAccountId)
+            .OrderBy(b => b.BankAccountId));
+
+        return ordered.Select(b => BuildPaymentMeans(cac, cbc, b));
+    }
+
+    private static XElement BuildPaymentMeans(XNamespace cac, XNamespace cbc, BankAccount bankAccount)
+    {
+        return new XElement(
+            cac + "PaymentMeans",
+            new XElement(cbc + "PaymentMeansCode", BankTransferPaymentMeansCode),
+            new XElement(
+                cac + "PayeeFinancialAccount",
+                new XElement(cbc + "ID", bankAccount.Iban),
+                new XElement(cbc + "PaymentNote", $"{bankAccount.BankName} ({bankAccount.Currency})")));
+    }
+
+    private static string GetInvoiceTypeCodeText(InvoiceTypeCode invoiceTypeCode) =>
+        invoiceTypeCode == InvoiceTypeCode.Iade ? ReturnInvoiceTypeCodeText : SalesInvoiceTypeCodeText;
+
+    private static XElement? BuildBillingReference(XNamespace cac, XNamespace cbc, Invoice invoice)
+    {
+        if (invoice.InvoiceTypeCode != InvoiceTypeCode.Iade || invoice.OriginalInvoice is null)
+        {
+            return null;
+        }
+
+        var original = invoice.OriginalInvoice;
+
+        var originalNumberText = !string.IsNullOrEmpty(original.InvoiceNumber)
+            ? original.InvoiceNumber
+            : DraftInvoiceNumberPlaceholder;
+
+        return new XElement(
+            cac + "BillingReference",
+            new XElement(
+                cac + "InvoiceDocumentReference",
+                new XElement(cbc + "ID", originalNumberText),
+                new XElement(cbc + "IssueDate", original.InvoiceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                new XElement(cbc + "DocumentTypeCode", ReturnDocumentTypeCode)));
     }
 
     private static string BuildDeterministicUuid(int invoiceId)
@@ -168,7 +277,10 @@ public static class EInvoiceXmlBuilder
             {
                 Percent = g.Key,
                 Taxable = g.Sum(l => Math.Round(l.Quantity * l.Price, 2)),
-                Tax = g.Sum(l => Math.Round(Math.Round(l.Quantity * l.Price, 2) * g.Key / 100, 2))
+                Tax = g.Sum(l => Math.Round(Math.Round(l.Quantity * l.Price, 2) * g.Key / 100, 2)),
+                ExemptionReason = string.Join(
+                    "; ",
+                    g.Select(l => l.ExemptionReason).Where(r => !string.IsNullOrWhiteSpace(r)).Distinct())
             })
             .ToList();
 
@@ -177,14 +289,17 @@ public static class EInvoiceXmlBuilder
         return new XElement(
             cac + "TaxTotal",
             new XElement(cbc + "TaxAmount", new XAttribute("currencyID", "TRY"), FormatAmount(totalTax)),
-            groups.Select(g => new XElement(
-                cac + "TaxSubtotal",
-                new XElement(cbc + "TaxableAmount", new XAttribute("currencyID", "TRY"), FormatAmount(g.Taxable)),
-                new XElement(cbc + "TaxAmount", new XAttribute("currencyID", "TRY"), FormatAmount(g.Tax)),
-                new XElement(cbc + "Percent", FormatAmount(g.Percent)),
+            groups.Select(g =>
                 new XElement(
-                    cac + "TaxCategory",
-                    new XElement(cac + "TaxScheme", new XElement(cbc + "TaxTypeCode", VatTaxTypeCode))))));
+                    cac + "TaxSubtotal",
+                    new XElement(cbc + "TaxableAmount", new XAttribute("currencyID", "TRY"), FormatAmount(g.Taxable)),
+                    new XElement(cbc + "TaxAmount", new XAttribute("currencyID", "TRY"), FormatAmount(g.Tax)),
+                    new XElement(cbc + "Percent", FormatAmount(g.Percent)),
+                    new XElement(
+                        cac + "TaxCategory",
+                        string.IsNullOrWhiteSpace(g.ExemptionReason) ? null : new XElement(cbc + "TaxExemptionReasonCode", SimulatedExemptionReasonCode),
+                        string.IsNullOrWhiteSpace(g.ExemptionReason) ? null : new XElement(cbc + "TaxExemptionReason", g.ExemptionReason),
+                        new XElement(cac + "TaxScheme", new XElement(cbc + "TaxTypeCode", VatTaxTypeCode))))));
     }
 
     private static XElement BuildLegalMonetaryTotal(XNamespace cac, XNamespace cbc, Invoice invoice)
@@ -207,7 +322,15 @@ public static class EInvoiceXmlBuilder
             new XElement(cbc + "ID", lineNumber.ToString(CultureInfo.InvariantCulture)),
             new XElement(cbc + "InvoicedQuantity", FormatQuantity(line.Quantity)),
             new XElement(cbc + "LineExtensionAmount", new XAttribute("currencyID", "TRY"), FormatAmount(lineSubtotal)),
-            new XElement(cac + "Item", new XElement(cbc + "Name", line.ItemName)),
+            new XElement(
+                cac + "Item",
+                new XElement(cbc + "Name", line.ItemName),
+                line.CustomValues
+                    .OrderBy(cv => cv.ColumnDefinitionId)
+                    .Select(cv => new XElement(
+                        cac + "AdditionalItemProperty",
+                        new XElement(cbc + "Name", cv.ColumnLabel),
+                        new XElement(cbc + "Value", cv.Value)))),
             new XElement(
                 cac + "Price",
                 new XElement(cbc + "PriceAmount", new XAttribute("currencyID", "TRY"), FormatAmount(line.Price))),
@@ -221,6 +344,8 @@ public static class EInvoiceXmlBuilder
                     new XElement(cbc + "Percent", FormatAmount(line.VatRatePercentage)),
                     new XElement(
                         cac + "TaxCategory",
+                        string.IsNullOrWhiteSpace(line.ExemptionReason) ? null : new XElement(cbc + "TaxExemptionReasonCode", SimulatedExemptionReasonCode),
+                        string.IsNullOrWhiteSpace(line.ExemptionReason) ? null : new XElement(cbc + "TaxExemptionReason", line.ExemptionReason),
                         new XElement(cac + "TaxScheme", new XElement(cbc + "TaxTypeCode", VatTaxTypeCode))))));
     }
 

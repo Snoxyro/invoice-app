@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ccts="urn:un:unece:uncefact:documentation:2" xmlns:clm54217="urn:un:unece:uncefact:codelist:specification:54217:2001" xmlns:clm5639="urn:un:unece:uncefact:codelist:specification:5639:1988" xmlns:clm66411="urn:un:unece:uncefact:codelist:specification:66411:2001" xmlns:clmIANAMIMEMediaType="urn:un:unece:uncefact:codelist:specification:IANAMIMEMediaType:2003" xmlns:fn="http://www.w3.org/2005/xpath-functions" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:n1="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:qdt="urn:oasis:names:specification:ubl:schema:xsd:QualifiedDatatypes-2" xmlns:udt="urn:un:unece:uncefact:data:specification:UnqualifiedDataTypesSchemaModule:2" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xdt="http://www.w3.org/2005/xpath-datatypes" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" exclude-result-prefixes="cac cbc ccts clm54217 clm5639 clm66411 clmIANAMIMEMediaType fn link n1 qdt udt xbrldi xbrli xdt xlink xs xsd xsi">
+<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:app="urn:invoiceapp:extensions:v1" xmlns:ccts="urn:un:unece:uncefact:documentation:2" xmlns:clm54217="urn:un:unece:uncefact:codelist:specification:54217:2001" xmlns:clm5639="urn:un:unece:uncefact:codelist:specification:5639:1988" xmlns:clm66411="urn:un:unece:uncefact:codelist:specification:66411:2001" xmlns:clmIANAMIMEMediaType="urn:un:unece:uncefact:codelist:specification:IANAMIMEMediaType:2003" xmlns:fn="http://www.w3.org/2005/xpath-functions" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:n1="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:qdt="urn:oasis:names:specification:ubl:schema:xsd:QualifiedDatatypes-2" xmlns:udt="urn:un:unece:uncefact:data:specification:UnqualifiedDataTypesSchemaModule:2" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xdt="http://www.w3.org/2005/xpath-datatypes" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" exclude-result-prefixes="cac cbc ext app ccts clm54217 clm5639 clm66411 clmIANAMIMEMediaType fn link n1 qdt udt xbrldi xbrli xdt xlink xs xsd xsi">
   <xsl:character-map name="a">
     <xsl:output-character character="" string="" />
     <xsl:output-character character="" string="" />
@@ -197,6 +197,12 @@
                   background-color:#000000;
                   color: white;
                   }
+                  <xsl:if test="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:FontFamily">
+                  body, body * { font-family: "<xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:FontFamily" />", Arial, Helvetica, sans-serif !important; }
+                  </xsl:if>
+                  <xsl:if test="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex">
+                  #customername { color: <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex" /> !important; }
+                  </xsl:if>
                </style>
         <title>e-Fatura</title>
       </head>
@@ -207,7 +213,18 @@
               <tr valign="top">
                 <td width="40%">
                   <br />
-                  <img alt="" id="company_logo" name="company_logo"  src="data:image/jpeg;base64,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" />
+                  <xsl:choose>
+                    <xsl:when test="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:LogoBase64">
+                      <img alt="" id="company_logo" name="company_logo">
+                        <xsl:attribute name="src">
+                          <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:LogoBase64" />
+                        </xsl:attribute>
+                      </img>
+                    </xsl:when>
+                    <xsl:otherwise>
+                      <img alt="" id="company_logo" name="company_logo"  src="data:image/jpeg;base64,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" />
+                    </xsl:otherwise>
+                  </xsl:choose>
                   <br />
                   <br />
                   <table align="center" border="0" width="100%">
@@ -1395,6 +1412,13 @@
                     </xsl:if>
                 </td>
                 </xsl:for-each>
+                <xsl:for-each select="//n1:Invoice/cac:InvoiceLine/cac:Item/cac:AdditionalItemProperty/cbc:Name[not(. = preceding::cac:AdditionalItemProperty/cbc:Name)]">
+                <td height="25" id="lineTableTd" bgcolor="#000000" style="color:#fff;" align="center">
+                  <span style="font-weight:bold;font-size:9px;">
+                    <xsl:value-of select="." />
+                  </span>
+                </td>
+                </xsl:for-each>
               </tr>
         
         
@@ -2283,6 +2307,12 @@
                       </xsl:choose>
                   </td>
               </xsl:for-each>
+              <xsl:for-each select="//n1:Invoice/cac:InvoiceLine/cac:Item/cac:AdditionalItemProperty/cbc:Name[not(. = preceding::cac:AdditionalItemProperty/cbc:Name)]">
+                <xsl:variable name="customColumnName" select="." />
+                <td id="lineTableTd" align="center">
+                  <xsl:value-of select="$line/cac:Item/cac:AdditionalItemProperty[cbc:Name = $customColumnName]/cbc:Value" />
+                </td>
+              </xsl:for-each>
                 </tr>
               </xsl:for-each>
             </tbody>
@@ -3002,6 +3032,19 @@
             </xsl:if>
           </table>
         </xsl:if>
+        <xsl:if test="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:StampBase64">
+          <table align="right" border="0" width="800px">
+            <tr>
+              <td align="right">
+                <img alt="" style="max-width:140px;max-height:140px;">
+                  <xsl:attribute name="src">
+                    <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:StampBase64" />
+                  </xsl:attribute>
+                </img>
+              </td>
+            </tr>
+          </table>
+        </xsl:if>
         <table id="notesTable" width="800px" height="100">
           <tbody>
             <tr align="left">
@@ -3056,24 +3099,27 @@
                     </xsl:if>
                   </xsl:if>
                 </xsl:for-each>
-                <!--Sabit Notlar-->
-                <b>     </b>
-        test
-                <br />
                 
-                <xsl:if test="//n1:Invoice/cac:PaymentMeans/cbc:InstructionNote">
+                <xsl:if test="(//n1:Invoice/cac:PaymentMeans)[1]/cbc:InstructionNote">
                   <b>      Ödeme Notu: </b>
-                  <xsl:value-of select="//n1:Invoice/cac:PaymentMeans/cbc:InstructionNote" />
+                  <xsl:value-of select="(//n1:Invoice/cac:PaymentMeans)[1]/cbc:InstructionNote" />
                   <br />
                 </xsl:if>
-                <xsl:if test="//n1:Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID">
+                <xsl:if test="(//n1:Invoice/cac:PaymentMeans)[1]/cac:PayeeFinancialAccount/cbc:ID">
                   <b>      Ödeme İban: </b>
-                  <xsl:value-of select="//n1:Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID" />
+                  <xsl:value-of select="(//n1:Invoice/cac:PaymentMeans)[1]/cac:PayeeFinancialAccount/cbc:ID" />
                   <br />
                 </xsl:if>
-                <xsl:if test="//n1:Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:PaymentNote">
+                <xsl:if test="(//n1:Invoice/cac:PaymentMeans)[1]/cac:PayeeFinancialAccount/cbc:PaymentNote">
                   <b>      Hesap Açıklaması: </b>
-                  <xsl:value-of select="//n1:Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:PaymentNote" />
+                  <xsl:value-of select="(//n1:Invoice/cac:PaymentMeans)[1]/cac:PayeeFinancialAccount/cbc:PaymentNote" />
+                  <br />
+                </xsl:if>
+                <xsl:if test="count(//n1:Invoice/cac:PaymentMeans) &gt; 1">
+                  <b>      Diğer Hesaplar: </b>
+                  <xsl:for-each select="//n1:Invoice/cac:PaymentMeans[position() &gt; 1]">
+                    <br />      <xsl:value-of select="cac:PayeeFinancialAccount/cbc:PaymentNote" /><xsl:text> - </xsl:text><xsl:value-of select="cac:PayeeFinancialAccount/cbc:ID" />
+                  </xsl:for-each>
                   <br />
                 </xsl:if>
                 <xsl:if test="//n1:Invoice/cac:PaymentTerms/cbc:Note">

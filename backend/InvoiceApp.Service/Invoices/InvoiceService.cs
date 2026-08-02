@@ -127,7 +127,8 @@ public class InvoiceService : IInvoiceService
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var invoice = await GetOwnedInvoiceAsync(
-            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true);
+            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true,
+            includeBankAccounts: true, includeOriginalInvoice: true);
 
         if (invoice.Status == InvoiceStatus.Sent)
         {
@@ -284,7 +285,8 @@ public class InvoiceService : IInvoiceService
     {
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var invoice = await GetOwnedInvoiceAsync(
-            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true);
+            context, invoiceId, includeLines: true, includeCustomer: true, includeFirm: true, includeBranch: true,
+            includeBankAccounts: true, includeOriginalInvoice: true);
 
         if (invoice.Status == InvoiceStatus.Sent && invoice.SentXmlContent is not null)
         {
@@ -544,7 +546,9 @@ public class InvoiceService : IInvoiceService
         bool includeLines = false,
         bool includeCustomer = false,
         bool includeFirm = false,
-        bool includeBranch = false)
+        bool includeBranch = false,
+        bool includeBankAccounts = false,
+        bool includeOriginalInvoice = false)
     {
         var query = _invoiceRepository.Query()
             .Where(i => i.InvoiceId == invoiceId && i.FirmId == context.FirmId);
@@ -564,9 +568,19 @@ public class InvoiceService : IInvoiceService
             query = query.Include(i => i.Firm);
         }
 
+        if (includeBankAccounts)
+        {
+            query = query.Include(i => i.Firm).ThenInclude(f => f.BankAccounts);
+        }
+
         if (includeBranch)
         {
             query = query.Include(i => i.Branch);
+        }
+
+        if (includeOriginalInvoice)
+        {
+            query = query.Include(i => i.OriginalInvoice);
         }
 
         if (!context.CanAccessAllBranches)
