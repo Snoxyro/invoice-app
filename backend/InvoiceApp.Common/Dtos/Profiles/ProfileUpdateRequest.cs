@@ -8,4 +8,6 @@ public class ProfileUpdateRequest
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
     public bool CanAccessAllBranches { get; set; }
+    public bool CanCreateSalesInvoices { get; set; }
+    public bool CanCreateReturnInvoices { get; set; }
 }

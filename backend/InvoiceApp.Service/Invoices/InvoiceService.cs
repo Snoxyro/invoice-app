@@ -14,6 +14,7 @@ public class InvoiceService : IInvoiceService
 {
     private const string SimulatedGibStatusCode = "1300";
     private const string SimulatedGibStatusMessage = "Başarıyla Tamamlandı";
+    private const string DraftReferencePlaceholder = "(taslak)";
 
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<Customer> _customerRepository;
@@ -52,6 +53,11 @@ public class InvoiceService : IInvoiceService
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
         var currentBranchId = context.BranchId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoBranch);
+
+        if (!context.CanCreateSalesInvoices)
+        {
+            throw new BusinessRuleException(ErrorCodes.CannotCreateSalesInvoices);
+        }
 
         var customer = await GetOwnedCustomerAsync(context, request.CustomerId);
         var series = await GetUsableSeriesAsync(context, request.InvoiceSeriesId);
@@ -178,6 +184,11 @@ public class InvoiceService : IInvoiceService
         var context = await _permissionService.GetUserContextAsync(currentUserId);
         var currentFirmId = context.FirmId ?? throw new BusinessRuleException(ErrorCodes.UserHasNoFirm);
 
+        if (!context.CanCreateReturnInvoices)
+        {
+            throw new BusinessRuleException(ErrorCodes.CannotCreateReturnInvoices);
+        }
+
         var originalInvoice = await GetOwnedInvoiceAsync(
             context, invoiceId, includeLines: true, includeCustomer: true, includeBranch: true);
 
@@ -189,6 +200,21 @@ public class InvoiceService : IInvoiceService
         if (originalInvoice.InvoiceTypeCode == InvoiceTypeCode.Iade)
         {
             throw new BusinessRuleException(ErrorCodes.CannotReturnAReturnInvoice);
+        }
+
+        var existingReturn = await _invoiceRepository.Query()
+            .Where(i => i.OriginalInvoiceId == originalInvoice.InvoiceId)
+            .Select(i => new { i.InvoiceNumber })
+            .FirstOrDefaultAsync();
+
+        if (existingReturn is not null)
+        {
+            throw new BusinessRuleException(
+                ErrorCodes.ReturnInvoiceAlreadyExists,
+                new Dictionary<string, string>
+                {
+                    ["returnInvoiceNumber"] = existingReturn.InvoiceNumber ?? DraftReferencePlaceholder
+                });
         }
 
         var series = await _invoiceSeriesRepository.Query()
@@ -328,6 +354,11 @@ public class InvoiceService : IInvoiceService
             query = query.Where(i => i.Status == request.Status.Value);
         }
 
+        if (request.InvoiceTypeCode.HasValue)
+        {
+            query = query.Where(i => i.InvoiceTypeCode == request.InvoiceTypeCode.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             query = query.Where(i =>
@@ -367,6 +398,24 @@ public class InvoiceService : IInvoiceService
 
         var pagedInvoices = await query.ToPagedResultAsync(request.Page, request.PageSize);
 
+        var pageInvoiceIds = pagedInvoices.Items.Select(i => i.InvoiceId).ToList();
+
+        var returnNumberByOriginalId = await _invoiceRepository.Query()
+            .Where(i => i.OriginalInvoiceId != null && pageInvoiceIds.Contains(i.OriginalInvoiceId.Value))
+            .Select(i => new { OriginalInvoiceId = i.OriginalInvoiceId!.Value, i.InvoiceNumber })
+            .ToDictionaryAsync(x => x.OriginalInvoiceId, x => x.InvoiceNumber ?? DraftReferencePlaceholder);
+
+        var originalInvoiceIds = pagedInvoices.Items
+            .Where(i => i.OriginalInvoiceId.HasValue)
+            .Select(i => i.OriginalInvoiceId!.Value)
+            .Distinct()
+            .ToList();
+
+        var numberByOriginalInvoiceId = await _invoiceRepository.Query()
+            .Where(i => originalInvoiceIds.Contains(i.InvoiceId))
+            .Select(i => new { i.InvoiceId, i.InvoiceNumber })
+            .ToDictionaryAsync(x => x.InvoiceId, x => x.InvoiceNumber ?? DraftReferencePlaceholder);
+
         return new InvoiceListResponse
         {
             Items = pagedInvoices.Items.Select(i => new InvoiceListItemResponse
@@ -383,6 +432,10 @@ public class InvoiceService : IInvoiceService
                 BranchName = i.Branch != null ? i.Branch.Name : null,
                 Status = i.Status,
                 InvoiceTypeCode = i.InvoiceTypeCode,
+                ReturnInvoiceNumber = returnNumberByOriginalId.GetValueOrDefault(i.InvoiceId),
+                OriginalInvoiceNumber = i.OriginalInvoiceId.HasValue
+                    ? numberByOriginalInvoiceId.GetValueOrDefault(i.OriginalInvoiceId.Value)
+                    : null,
                 CreatedDate = i.CreatedDate,
                 UpdatedDate = i.UpdatedDate
             }).ToList(),

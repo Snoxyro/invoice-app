@@ -57,6 +57,7 @@ public class CustomerService : ICustomerService
             Title = request.Title,
             Address = request.Address,
             Email = request.Email,
+            Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone,
             FirmId = currentFirmId,
             BranchId = branchId
         };
@@ -96,6 +97,7 @@ public class CustomerService : ICustomerService
         customer.Title = request.Title;
         customer.Address = request.Address;
         customer.Email = request.Email;
+        customer.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone;
         customer.BranchId = await ResolveBranchIdForUpdateAsync(
             context, context.FirmId!.Value, customer.BranchId, request.BranchId);
 
@@ -280,6 +282,7 @@ public class CustomerService : ICustomerService
             Title = customer.Title,
             Address = customer.Address,
             Email = customer.Email,
+            Phone = customer.Phone,
             BranchId = customer.BranchId,
             BranchName = branchName,
             CreatedDate = customer.CreatedDate,

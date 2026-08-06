@@ -43,6 +43,8 @@ interface InvoiceListItemResponse {
   branchName: string | null;
   status: InvoiceStatus;
   invoiceTypeCode: InvoiceTypeCode;
+  returnInvoiceNumber: string | null;
+  originalInvoiceNumber: string | null;
   createdDate: string;
   updatedDate: string | null;
 }
@@ -104,17 +106,19 @@ function formatAmount(value: number): string {
 export default function InvoicesPage() {
   const t = useTranslations("invoices");
   const tCommon = useTranslations("common");
-  const { hasPermission } = usePermissions();
+  const { hasPermission, canCreateSalesInvoices, canCreateReturnInvoices } = usePermissions();
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
   const list = usePagedList<InvoiceListItemResponse, InvoiceListResponse>("/api/Invoices", {
     extraParams: {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       status: statusFilter || undefined,
+      invoiceTypeCode: typeFilter || undefined,
     },
   });
 
@@ -129,7 +133,7 @@ export default function InvoicesPage() {
 
   const [returningInvoice, setReturningInvoice] = useState<InvoiceListItemResponse | null>(null);
 
-  const canCreate = hasPermission("Invoices", "Create");
+  const canCreate = hasPermission("Invoices", "Create") && canCreateSalesInvoices;
   const canUpdate = hasPermission("Invoices", "Update");
   const canDelete = hasPermission("Invoices", "Delete");
 
@@ -183,6 +187,10 @@ export default function InvoicesPage() {
     setStatusFilter(value === "all" || value === null ? "" : value);
   }
 
+  function handleTypeFilterChange(value: string | null) {
+    setTypeFilter(value === "all" || value === null ? "" : value);
+  }
+
   const columns: PagedTableColumn<InvoiceListItemResponse>[] = [
     {
       key: "invoiceNumber",
@@ -203,20 +211,39 @@ export default function InvoicesPage() {
     {
       key: "status",
       header: t("columnStatus"),
+      render: (i) =>
+        i.status === "Sent" ? (
+          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+            {t("statusSent")}
+          </span>
+        ) : (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+            {t("statusDraft")}
+          </span>
+        ),
+    },
+    {
+      key: "invoiceTypeCode",
+      header: t("columnInvoiceType"),
       render: (i) => (
-        <div className="flex items-center gap-1">
-          {i.status === "Sent" ? (
-            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-              {t("statusSent")}
+        <div className="flex flex-col gap-0.5">
+          {i.invoiceTypeCode === "Iade" ? (
+            <span className="w-fit rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-400">
+              {t("typeReturnBadge")}
             </span>
           ) : (
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              {t("statusDraft")}
+            <span className="w-fit rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-700 dark:bg-sky-950 dark:text-sky-400">
+              {t("typeSalesBadge")}
             </span>
           )}
-          {i.invoiceTypeCode === "Iade" && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-400">
-              {t("typeReturnBadge")}
+          {i.invoiceTypeCode === "Satis" && i.returnInvoiceNumber && (
+            <span className="text-xs text-muted-foreground">
+              {t("returnReferenceLabel")}: {i.returnInvoiceNumber}
+            </span>
+          )}
+          {i.invoiceTypeCode === "Iade" && i.originalInvoiceNumber && (
+            <span className="text-xs text-muted-foreground">
+              {t("originalReferenceLabel")}: {i.originalInvoiceNumber}
             </span>
           )}
         </div>
@@ -256,7 +283,12 @@ export default function InvoicesPage() {
       header: t("columnActions"),
       render: (i) => {
         const isDraft = i.status === "Draft";
-        const canReturn = canCreate && i.status === "Sent" && i.invoiceTypeCode === "Satis";
+        const canReturn =
+          hasPermission("Invoices", "Create") &&
+          canCreateReturnInvoices &&
+          i.status === "Sent" &&
+          i.invoiceTypeCode === "Satis" &&
+          !i.returnInvoiceNumber;
 
         return (
           <div className="flex items-center gap-1">
@@ -378,6 +410,30 @@ export default function InvoicesPage() {
                     <SelectItem value="all">{t("statusAll")}</SelectItem>
                     <SelectItem value="Draft">{t("statusDraft")}</SelectItem>
                     <SelectItem value="Sent">{t("statusSent")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="typeFilter">{t("typeFilterLabel")}</Label>
+                <Select
+                  value={typeFilter || "all"}
+                  onValueChange={handleTypeFilterChange}
+                >
+                  <SelectTrigger id="typeFilter" className="w-36">
+                    <SelectValue>
+                      {(value: string | null) =>
+                        value === "Satis"
+                          ? t("typeSalesBadge")
+                          : value === "Iade"
+                            ? t("typeReturnBadge")
+                            : t("typeAll")
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false}>
+                    <SelectItem value="all">{t("typeAll")}</SelectItem>
+                    <SelectItem value="Satis">{t("typeSalesBadge")}</SelectItem>
+                    <SelectItem value="Iade">{t("typeReturnBadge")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

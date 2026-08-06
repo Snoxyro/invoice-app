@@ -230,11 +230,13 @@
                   </xsl:if>
                   <xsl:if test="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex">
                   #customername { color: <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex" /> !important; }
+                  #despatchTable span { color: <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex" /> !important; }
+                  hr.app-accent-line { border-top-color: <xsl:value-of select="//n1:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/app:InvoiceAppExtension/app:Branding/app:AccentColorHex" /> !important; }
                   </xsl:if>
                </style>
         <title>e-Fatura</title>
       </head>
-      <body style="margin-left=0.6in; margin-right=0.6in; margin-top=0.79in; margin-bottom=0.79in">
+      <body style="width:800px; margin-left=0.6in; margin-right=0.6in; margin-top=0.79in; margin-bottom=0.79in">
         <xsl:for-each select="$XML">
           <table style="border-color:blue; " border="0" cellspacing="0px" width="800px" cellpadding="0px">
             <tbody>
@@ -446,7 +448,10 @@
                   <div align="right" id="qrcode"/>
                   <div id="qrvalue"
                     style="visibility: hidden; height: 20px;width: 20px; ; display:none"
-                    > {"vkntckn":"<xsl:value-of select="n1:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID = 'TCKN' or @schemeID = 'VKN']"/>", "avkntckn":"<xsl:value-of select="n1:Invoice/cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID = 'TCKN' or @schemeID = 'VKN']"/><xsl:text> </xsl:text>", "senaryo":"<xsl:value-of select="n1:Invoice/cbc:ProfileID"/>", "tip":"<xsl:value-of select="n1:Invoice/cbc:InvoiceTypeCode"/>", "tarih":"<xsl:value-of select="n1:Invoice/cbc:IssueDate"/>", "no":"<xsl:value-of select="n1:Invoice/cbc:ID"/>", "ettn":"<xsl:value-of select="n1:Invoice/cbc:UUID"/>", "parabirimi":"<xsl:value-of select="n1:Invoice/cbc:DocumentCurrencyCode"/>", "malhizmettoplam":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:LineExtensionAmount"/><xsl:for-each select="n1:Invoice/cac:TaxTotal/cac:TaxSubtotal[cac:TaxCategory/cac:TaxScheme/cbc:TaxTypeCode = '0015']">"<xsl:text>, "kdvmatrah</xsl:text>(<xsl:value-of select="cbc:Percent"/>)":"<xsl:value-of select="cbc:TaxableAmount"/>"</xsl:for-each><xsl:for-each select="n1:Invoice/cac:TaxTotal/cac:TaxSubtotal[cac:TaxCategory/cac:TaxScheme/cbc:TaxTypeCode = '0015']"><xsl:text>, "hesaplanankdv</xsl:text>(<xsl:value-of select="cbc:Percent"/>)":"<xsl:value-of select="cbc:TaxAmount"/>",</xsl:for-each>"vergidahil":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount"/>", "odenecek":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount"/>"}
+                    ><xsl:choose>
+                    <xsl:when test="n1:Invoice/cbc:ID = '(taslak — gönderildiğinde numara atanacak)'">ORNEK GECERSIZ QR</xsl:when>
+                    <xsl:otherwise> {"vkntckn":"<xsl:value-of select="n1:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID = 'TCKN' or @schemeID = 'VKN']"/>", "avkntckn":"<xsl:value-of select="n1:Invoice/cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID = 'TCKN' or @schemeID = 'VKN']"/><xsl:text> </xsl:text>", "senaryo":"<xsl:value-of select="n1:Invoice/cbc:ProfileID"/>", "tip":"<xsl:value-of select="n1:Invoice/cbc:InvoiceTypeCode"/>", "tarih":"<xsl:value-of select="n1:Invoice/cbc:IssueDate"/>", "no":"<xsl:value-of select="n1:Invoice/cbc:ID"/>", "ettn":"<xsl:value-of select="n1:Invoice/cbc:UUID"/>", "parabirimi":"<xsl:value-of select="n1:Invoice/cbc:DocumentCurrencyCode"/>", "malhizmettoplam":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:LineExtensionAmount"/><xsl:for-each select="n1:Invoice/cac:TaxTotal/cac:TaxSubtotal[cac:TaxCategory/cac:TaxScheme/cbc:TaxTypeCode = '0015']">"<xsl:text>, "kdvmatrah</xsl:text>(<xsl:value-of select="cbc:Percent"/>)":"<xsl:value-of select="cbc:TaxableAmount"/>"</xsl:for-each><xsl:for-each select="n1:Invoice/cac:TaxTotal/cac:TaxSubtotal[cac:TaxCategory/cac:TaxScheme/cbc:TaxTypeCode = '0015']"><xsl:text>, "hesaplanankdv</xsl:text>(<xsl:value-of select="cbc:Percent"/>)":"<xsl:value-of select="cbc:TaxAmount"/>",</xsl:for-each>"vergidahil":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount"/>", "odenecek":"<xsl:value-of select="n1:Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount"/>"}</xsl:otherwise>
+                    </xsl:choose>
                   </div>
                   <script type="text/javascript">                    
                     const element = document.getElementById("qrkod");
@@ -476,7 +481,7 @@
 
                       <xsl:if test="//n1:Invoice/cbc:ProfileID != 'IHRACAT'">
                         <tr style="height:35px; ">
-                          <hr style="display: block;&#xD;&#xA;                                          height: 1px;&#xD;&#xA;                                          border: 0;&#xD;&#xA;                                          border-top: 1px solid #000000;&#xD;&#xA;                                          padding: 0; " />
+                          <hr class="app-accent-line" style="display: block;&#xD;&#xA;                                          height: 1px;&#xD;&#xA;                                          border: 0;&#xD;&#xA;                                          border-top: 1px solid #000000;&#xD;&#xA;                                          padding: 0; " />
                           <td>
                             <table align="center" border="0">
                               <tbody>
@@ -603,7 +608,7 @@
 
                               </tbody>
                             </table>
-                            <hr style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
+                            <hr class="app-accent-line" style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
                           </td>
                         </tr>
                       </xsl:if>
@@ -611,7 +616,7 @@
                       <xsl:if test="//n1:Invoice/cbc:ProfileID = 'IHRACAT'">
                         <tr style="height:71px; ">
                           <td>
-                            <hr style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
+                            <hr class="app-accent-line" style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
                             <table align="center" border="0">
                               <tbody>
                                 <tr>
@@ -682,7 +687,7 @@
                                 </tr>
                               </tbody>
                             </table>
-                            <hr style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
+                            <hr class="app-accent-line" style="display: block;&#xD;&#xA;                                             height: 1px;&#xD;&#xA;                                             border: 0;&#xD;&#xA;                                             border-top: 1px solid #000000;&#xD;&#xA;                                             padding: 0; " />
                           </td>
                         </tr>
                       </xsl:if>

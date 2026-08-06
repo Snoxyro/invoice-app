@@ -276,9 +276,12 @@ public static class EInvoiceXmlBuilder
                 new XElement(cbc + "StreetName", customer.Address),
                 new XElement(cac + "Country", new XElement(cbc + "Name", "Türkiye"))));
 
-        if (!string.IsNullOrWhiteSpace(customer.Email))
+        if (!string.IsNullOrWhiteSpace(customer.Phone) || !string.IsNullOrWhiteSpace(customer.Email))
         {
-            party.Add(new XElement(cac + "Contact", new XElement(cbc + "ElectronicMail", customer.Email)));
+            party.Add(new XElement(
+                cac + "Contact",
+                string.IsNullOrWhiteSpace(customer.Phone) ? null : new XElement(cbc + "Telephone", customer.Phone),
+                string.IsNullOrWhiteSpace(customer.Email) ? null : new XElement(cbc + "ElectronicMail", customer.Email)));
         }
 
         return new XElement(cac + "AccountingCustomerParty", party);

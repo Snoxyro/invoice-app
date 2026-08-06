@@ -42,7 +42,7 @@ interface FirmBrandingSectionProps {
 }
 
 export function FirmBrandingSection({ canUpdate, previewRefreshKey }: FirmBrandingSectionProps) {
-  const t = useTranslations("invoiceSettings");
+  const t = useTranslations("invoiceCustomization");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
 

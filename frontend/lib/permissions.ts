@@ -4,7 +4,7 @@ export type PermissionResource =
   | "Customers"
   | "Invoices"
   | "Branches"
-  | "InvoiceSettings";
+  | "InvoiceCustomization";
 export type PermissionActionType = "Create" | "Read" | "Update" | "Delete";
 
 export interface VatRateOption {
@@ -33,6 +33,8 @@ export interface MyPermissionsResponse {
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
   canAccessAllBranches: boolean;
+  canCreateSalesInvoices: boolean;
+  canCreateReturnInvoices: boolean;
   branchId: number | null;
   availableInvoiceSeries: InvoiceSeriesOption[];
   availableBranches: BranchOption[];

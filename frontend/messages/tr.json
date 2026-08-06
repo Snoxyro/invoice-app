@@ -10,7 +10,7 @@
     "logout": "Çıkış Yap",
     "firms": "Firmalar",
     "profiles": "Profiller",
-    "invoiceSettings": "Fatura Ayarları"
+    "invoiceCustomization": "Fatura Özelleştirme"
   },
   "home": {
     "greetingPrefix": "Merhaba,"
@@ -85,6 +85,7 @@
     "columnTitle": "Ünvan",
     "columnTaxNumber": "Vergi No",
     "columnEmail": "E-posta",
+    "columnPhone": "Telefon",
     "columnBranch": "Şube",
     "columnCreatedDate": "Oluşturulma",
     "columnUpdatedDate": "Son Güncelleme",
@@ -97,6 +98,7 @@
     "titleLabel": "Ünvan",
     "taxNumberLabel": "Vergi No",
     "emailLabel": "E-posta",
+    "phoneLabel": "Telefon",
     "addressLabel": "Adres",
     "deleteTitle": "Müşteriyi Sil",
     "deleteDescription": "\"{title}\" müşterisini silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
@@ -176,6 +178,12 @@
     "deleteTitle": "Faturayı Sil",
     "deleteDescription": "\"{invoiceNumber}\" numaralı faturayı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
     "typeReturnBadge": "İade",
+    "typeSalesBadge": "Satış",
+    "columnInvoiceType": "Fatura Tipi",
+    "typeFilterLabel": "Fatura Tipi",
+    "typeAll": "Tümü",
+    "returnReferenceLabel": "İade",
+    "originalReferenceLabel": "Kaynak",
     "returnButton": "İade Faturası Oluştur",
     "returnConfirmTitle": "İade Faturası Oluştur",
     "returnConfirmDescription": "\"{invoiceNumber}\" numaralı fatura için yeni bir taslak iade faturası oluşturulacak. Devam etmek istiyor musunuz?",
@@ -216,6 +224,7 @@
     "resourceCustomers": "Müşteriler",
     "resourceInvoices": "Faturalar",
     "resourceBranches": "Şubeler",
+    "resourceInvoiceCustomization": "Fatura Özelleştirme",
     "actionCreate": "Oluştur",
     "actionRead": "Görüntüle",
     "actionUpdate": "Düzenle",
@@ -225,6 +234,10 @@
     "branchAccessTitle": "Şube Erişimi",
     "canAccessAllBranchesLabel": "Tüm şubelere erişim",
     "canAccessAllBranchesDisabledHint": "Bu yetkiyi yalnızca kendiniz de tüm şubelere erişebiliyorsanız verebilirsiniz",
+    "invoiceTypeAccessLabel": "Fatura Tipi Yetkisi",
+    "canCreateSalesInvoicesLabel": "Satış Faturası Oluşturabilir",
+    "canCreateReturnInvoicesLabel": "İade Faturası Oluşturabilir",
+    "invoiceTypeAccessDisabledHint": "Bu yetkilerden yalnızca kendinizde olanları verebilirsiniz",
     "deleteTitle": "Profili Sil",
     "deleteDescription": "\"{name}\" profilini silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
   },
@@ -344,11 +357,14 @@
     "EXEMPTION_REASON_REQUIRED": "İstisna KDV oranı seçildiğinde istisna sebebi zorunludur",
     "ORIGINAL_INVOICE_NOT_SENT_CANNOT_RETURN": "Yalnızca gönderilmiş bir faturadan iade oluşturulabilir",
     "CANNOT_RETURN_A_RETURN_INVOICE": "Bir iade faturası tekrar iade edilemez",
+    "CANNOT_CREATE_SALES_INVOICES": "Profilinizin Satış faturası oluşturma yetkisi yok",
+    "CANNOT_CREATE_RETURN_INVOICES": "Profilinizin İade faturası oluşturma yetkisi yok",
+    "RETURN_INVOICE_ALREADY_EXISTS": "\"{returnInvoiceNumber}\" numaralı fatura bu faturanın iadesidir. Yeni bir iade oluşturmak için önce onu silmelisiniz.",
     "SESSION_EXPIRED": "Oturum süresi doldu",
     "UNEXPECTED_ERROR": "Beklenmeyen bir hata oluştu"
   },
-  "invoiceSettings": {
-    "title": "Fatura Ayarları",
+  "invoiceCustomization": {
+    "title": "Fatura Özelleştirme",
     "brandingTitle": "Marka Kimliği",
     "brandingDescription": "Faturalarınızda görünecek logo, kaşe, renk ve fontu ayarlayın.",
     "logoLabel": "Logo",

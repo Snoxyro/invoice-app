@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-const NATURAL_WIDTH = 850;
-// Gerçek yükseklik iframe'den postMessage ile ölçülene kadar kullanılan başlangıç
-// tahmini — A4 oranına yakın (850 * 297/210 ≈ 1202), rastgele büyük bir değer değil.
+const NATURAL_WIDTH = 816;
 const FALLBACK_HEIGHT = 1202;
 const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 1.5;
+const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 const HEIGHT_MESSAGE_SOURCE = "invoice-app-preview";
 
@@ -19,22 +17,18 @@ function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
 }
 
+const FIT_SAFETY_MARGIN_PX = 1;
+
 function computeFitZoom(containerWidth: number): number {
   if (containerWidth <= 0) {
     return 1;
   }
 
-  return clampZoom(Math.min(1, containerWidth / NATURAL_WIDTH));
+  const usableWidth = Math.max(0, containerWidth - FIT_SAFETY_MARGIN_PX);
+
+  return Math.max(MIN_ZOOM, usableWidth / NATURAL_WIDTH);
 }
 
-/**
- * İframe içeriğinin gerçek yüksekliğini ana pencereye postMessage ile bildiren
- * küçük bir betik ekler. `sandbox="allow-scripts"` kullanıyoruz ama
- * `allow-same-origin` KULLANMIYORUZ (iframe'in kendi izole originde kalması
- * için) — bu yüzden ana pencereden `contentDocument`'a doğrudan erişemeyiz.
- * postMessage, sandbox kısıtlamalarını zayıflatmadan yüksekliği öğrenmenin
- * standart yoludur.
- */
 function withHeightReporter(html: string): string {
   const script = `<script>(function(){function r(){try{var h=document.documentElement.scrollHeight;window.parent.postMessage({source:"${HEIGHT_MESSAGE_SOURCE}",height:h},"*");}catch(e){}}window.addEventListener("load",r);if(window.ResizeObserver){new ResizeObserver(r).observe(document.body);}setTimeout(r,50);setTimeout(r,300);setTimeout(r,800);})();</script>`;
 
@@ -46,39 +40,39 @@ function withHeightReporter(html: string): string {
 }
 
 interface ScaledFrameProps {
-  html: string;
+  html: string | null;
   zoom: number;
   contentHeight: number;
   measureRef: React.RefObject<HTMLDivElement | null>;
+  emptyLabel: string;
 }
 
-function ScaledFrame({ html, zoom, contentHeight, measureRef }: ScaledFrameProps) {
+function ScaledFrame({ html, zoom, contentHeight, measureRef, emptyLabel }: ScaledFrameProps) {
   return (
-    <div ref={measureRef} className="h-full w-full overflow-auto rounded-md border bg-muted">
-      <div style={{ width: NATURAL_WIDTH * zoom, height: contentHeight * zoom }}>
-        <div style={{ width: NATURAL_WIDTH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
-          <iframe
-            srcDoc={html}
-            className="bg-white"
-            style={{ width: NATURAL_WIDTH, height: contentHeight, border: 0 }}
-            sandbox="allow-scripts"
-          />
+    <div
+      ref={measureRef}
+      className="h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-scroll rounded-md border bg-muted"
+    >
+      {html ? (
+        <div className="mx-auto" style={{ width: NATURAL_WIDTH * zoom, height: contentHeight * zoom }}>
+          <div style={{ width: NATURAL_WIDTH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+            <iframe
+              srcDoc={html}
+              className="bg-white"
+              style={{ width: NATURAL_WIDTH, height: contentHeight, border: 0 }}
+              sandbox="allow-scripts"
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+          {emptyLabel}
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * Bir konteynerin genişliğine göre yakınlaştırma seviyesini bir kere hesaplar.
- * Bilinçli olarak sürekli izlemiyor (ResizeObserver ile kalıcı takip yapmıyor):
- * içerik yakınlaştırma yüzdesine göre yeniden boyutlandığında konteynerin
- * kaydırma çubuğu görünüp kaybolabiliyor, bu da clientWidth'i değiştirip
- * fonksiyonun kendini tekrar tekrar tetiklemesine (kullanıcının elle
- * ayarladığı zoom'u anında geri almasına) yol açıyordu. Bunun yerine yalnızca
- * mount anında bir kere sığdırma hesaplanıyor; "sığdır" butonu ile istenildiğinde
- * tekrar (tek seferlik) hesaplanabiliyor.
- */
 function useFitOnMount(measureRef: React.RefObject<HTMLDivElement | null>, setZoom: (z: number) => void) {
   useEffect(() => {
     const el = measureRef.current;
@@ -121,7 +115,7 @@ interface ZoomControlsProps {
 }
 
 function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit, onFullscreen }: ZoomControlsProps) {
-  const t = useTranslations("invoiceSettings");
+  const t = useTranslations("invoiceCustomization");
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -151,6 +145,46 @@ function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit, onFullscreen }: ZoomCo
   );
 }
 
+interface FullscreenPreviewBodyProps {
+  html: string;
+  contentHeight: number;
+}
+
+function FullscreenPreviewBody({ html, contentHeight }: FullscreenPreviewBodyProps) {
+  const [fullscreenZoom, setFullscreenZoom] = useState(1);
+  const fullscreenMeasureRef = useRef<HTMLDivElement>(null);
+
+  useFitOnMount(fullscreenMeasureRef, setFullscreenZoom);
+
+  function handleFullscreenFit() {
+    const el = fullscreenMeasureRef.current;
+
+    if (el) {
+      setFullscreenZoom(computeFitZoom(el.clientWidth));
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+      <ZoomControls
+        zoom={fullscreenZoom}
+        onZoomIn={() => setFullscreenZoom((z) => clampZoom(z + ZOOM_STEP))}
+        onZoomOut={() => setFullscreenZoom((z) => clampZoom(z - ZOOM_STEP))}
+        onFit={handleFullscreenFit}
+      />
+      <div className="min-h-0 min-w-0 flex-1">
+        <ScaledFrame
+          html={html}
+          zoom={fullscreenZoom}
+          contentHeight={contentHeight}
+          measureRef={fullscreenMeasureRef}
+          emptyLabel=""
+        />
+      </div>
+    </div>
+  );
+}
+
 interface ZoomableInvoicePreviewProps {
   html: string | null;
   heightClassName?: string;
@@ -162,16 +196,14 @@ export function ZoomableInvoicePreview({
   heightClassName = "h-[500px]",
   emptyLabel,
 }: ZoomableInvoicePreviewProps) {
-  const t = useTranslations("invoiceSettings");
+  const t = useTranslations("invoiceCustomization");
   const [zoom, setZoom] = useState(1);
-  const [fullscreenZoom, setFullscreenZoom] = useState(1);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [contentHeight, setContentHeight] = useState(FALLBACK_HEIGHT);
 
   const measureRef = useRef<HTMLDivElement>(null);
-  const fullscreenMeasureRef = useRef<HTMLDivElement>(null);
 
-  const reportedHtml = html ? withHeightReporter(html) : null;
+  const reportedHtml = useMemo(() => (html ? withHeightReporter(html) : null), [html]);
 
   useFitOnMount(measureRef, setZoom);
 
@@ -188,18 +220,6 @@ export function ZoomableInvoicePreview({
     return () => window.removeEventListener("message", handleMessage);
   }, [html]);
 
-  useEffect(() => {
-    if (!fullscreenOpen) {
-      return;
-    }
-
-    const el = fullscreenMeasureRef.current;
-
-    if (el) {
-      setFullscreenZoom(computeFitZoom(el.clientWidth));
-    }
-  }, [fullscreenOpen]);
-
   function handleFit() {
     const el = measureRef.current;
 
@@ -208,16 +228,8 @@ export function ZoomableInvoicePreview({
     }
   }
 
-  function handleFullscreenFit() {
-    const el = fullscreenMeasureRef.current;
-
-    if (el) {
-      setFullscreenZoom(computeFitZoom(el.clientWidth));
-    }
-  }
-
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="flex h-full min-w-0 flex-col gap-2">
       <ZoomControls
         zoom={zoom}
         onZoomIn={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
@@ -226,39 +238,24 @@ export function ZoomableInvoicePreview({
         onFullscreen={reportedHtml ? () => setFullscreenOpen(true) : undefined}
       />
 
-      <div className={heightClassName}>
-        {reportedHtml ? (
-          <ScaledFrame html={reportedHtml} zoom={zoom} contentHeight={contentHeight} measureRef={measureRef} />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-md border bg-muted text-sm text-muted-foreground">
-            {emptyLabel}
-          </div>
-        )}
+      <div className={`${heightClassName} min-h-0 min-w-0`}>
+        <ScaledFrame
+          html={reportedHtml}
+          zoom={zoom}
+          contentHeight={contentHeight}
+          measureRef={measureRef}
+          emptyLabel={emptyLabel}
+        />
       </div>
 
       <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
         <DialogContent
-          className="flex flex-col gap-2"
+          className="flex min-w-0 flex-col gap-2"
           style={{ width: "95vw", maxWidth: "95vw", height: "90vh" }}
         >
           <DialogTitle>{t("previewLabel")}</DialogTitle>
-          {reportedHtml && (
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <ZoomControls
-                zoom={fullscreenZoom}
-                onZoomIn={() => setFullscreenZoom((z) => clampZoom(z + ZOOM_STEP))}
-                onZoomOut={() => setFullscreenZoom((z) => clampZoom(z - ZOOM_STEP))}
-                onFit={handleFullscreenFit}
-              />
-              <div className="min-h-0 flex-1">
-                <ScaledFrame
-                  html={reportedHtml}
-                  zoom={fullscreenZoom}
-                  contentHeight={contentHeight}
-                  measureRef={fullscreenMeasureRef}
-                />
-              </div>
-            </div>
+          {fullscreenOpen && reportedHtml && (
+            <FullscreenPreviewBody html={reportedHtml} contentHeight={contentHeight} />
           )}
         </DialogContent>
       </Dialog>

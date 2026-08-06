@@ -10,6 +10,8 @@ public class Profile : BaseEntity
     public bool CanAccessAllBranches { get; set; }
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
+    public bool CanCreateSalesInvoices { get; set; } = true;
+    public bool CanCreateReturnInvoices { get; set; } = true;
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<ProfilePermission> ProfilePermissions { get; set; } = new List<ProfilePermission>();
     public ICollection<ProfileVatRate> ProfileVatRates { get; set; } = new List<ProfileVatRate>();

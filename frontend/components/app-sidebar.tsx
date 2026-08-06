@@ -49,21 +49,21 @@ export function AppSidebar() {
   const adminItems: NavItem[] = [{ href: "/admin/firms", label: t("firms"), icon: Building }];
 
   const firmItems: NavItem[] = [
-    hasPermission("Users", "Read") ? { href: "/users", label: t("users"), icon: Users } : null,
     hasPermission("Customers", "Read")
       ? { href: "/customers", label: t("customers"), icon: Building2 }
       : null,
     hasPermission("Invoices", "Read")
       ? { href: "/invoices", label: t("invoices"), icon: Receipt }
       : null,
+    hasPermission("InvoiceCustomization", "Read")
+      ? { href: "/invoice-customization", label: t("invoiceCustomization"), icon: Palette }
+      : null,
     hasPermission("Branches", "Read")
       ? { href: "/branches", label: t("branches"), icon: Landmark }
       : null,
+    hasPermission("Users", "Read") ? { href: "/users", label: t("users"), icon: Users } : null,
     hasPermission("Profiles", "Read")
       ? { href: "/profiles", label: t("profiles"), icon: ShieldCheck }
-      : null,
-    hasPermission("InvoiceSettings", "Read")
-      ? { href: "/invoice-settings", label: t("invoiceSettings"), icon: Palette }
       : null,
   ].filter((item): item is NavItem => item !== null);
 

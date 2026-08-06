@@ -22,6 +22,8 @@ interface PermissionContextValue {
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
   canAccessAllBranches: boolean;
+  canCreateSalesInvoices: boolean;
+  canCreateReturnInvoices: boolean;
   branchId: number | null;
   availableInvoiceSeries: InvoiceSeriesOption[];
   availableBranches: BranchOption[];
@@ -71,6 +73,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         minInvoiceAmount: data?.minInvoiceAmount ?? null,
         maxInvoiceAmount: data?.maxInvoiceAmount ?? null,
         canAccessAllBranches: data?.canAccessAllBranches ?? false,
+        canCreateSalesInvoices: data?.canCreateSalesInvoices ?? false,
+        canCreateReturnInvoices: data?.canCreateReturnInvoices ?? false,
         branchId: data?.branchId ?? null,
         availableInvoiceSeries: data?.availableInvoiceSeries ?? [],
         availableBranches: data?.availableBranches ?? [],

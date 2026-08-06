@@ -30,6 +30,7 @@ interface CustomerResponse {
   title: string;
   address: string;
   email: string;
+  phone: string | null;
   branchId: number | null;
   branchName: string | null;
   createdDate: string;
@@ -60,6 +61,7 @@ export function CustomerFormDialog({
   const [title, setTitle] = useState("");
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [branchId, setBranchId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export function CustomerFormDialog({
       setTitle(customer?.title ?? "");
       setAddress(customer?.address ?? "");
       setEmail(customer?.email ?? "");
+      setPhone(customer?.phone ?? "");
       setBranchId(customer ? (customer.branchId ?? null) : defaultBranchId);
       setError(null);
     }
@@ -89,7 +92,7 @@ export function CustomerFormDialog({
     setIsSubmitting(true);
     setError(null);
 
-    const payload = { taxNumber, title, address, email, branchId };
+    const payload = { taxNumber, title, address, email, phone: phone.trim() || null, branchId };
 
     try {
       let result: CustomerResponse;
@@ -154,15 +157,27 @@ export function CustomerFormDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">{t("emailLabel")}</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="email">{t("emailLabel")}</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="phone">{t("phoneLabel")}</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+90 212 000 00 00"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

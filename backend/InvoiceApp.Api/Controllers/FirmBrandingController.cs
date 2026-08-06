@@ -21,7 +21,7 @@ public class FirmBrandingController : ControllerBase
     }
 
     [HttpGet]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Read)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Read)]
     public async Task<ActionResult<FirmBrandingResponse>> Get()
     {
         var result = await _firmService.GetBrandingAsync(User.GetUserId());
@@ -29,7 +29,7 @@ public class FirmBrandingController : ControllerBase
     }
 
     [HttpPut]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Update)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Update)]
     public async Task<ActionResult<FirmBrandingResponse>> Update(FirmBrandingUpdateRequest request)
     {
         var result = await _firmService.UpdateBrandingAsync(User.GetUserId(), request);
@@ -37,7 +37,7 @@ public class FirmBrandingController : ControllerBase
     }
 
     [HttpPost("preview")]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Read)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Read)]
     public async Task<ContentResult> Preview(FirmBrandingUpdateRequest request)
     {
         var html = await _firmService.GetBrandingPreviewAsync(User.GetUserId(), request);

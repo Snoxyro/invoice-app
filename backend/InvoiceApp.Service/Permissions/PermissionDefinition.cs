@@ -10,6 +10,8 @@ public class PermissionDefinition
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
     public bool CanAccessAllBranches { get; set; }
+    public bool CanCreateSalesInvoices { get; set; }
+    public bool CanCreateReturnInvoices { get; set; }
 
     public bool Has(PermissionResource resource, PermissionAction action) => Permissions.Contains((resource, action));
 
@@ -18,7 +20,8 @@ public class PermissionDefinition
         return PermissionIds.All(other.PermissionIds.Contains)
             && VatRateIds.All(other.VatRateIds.Contains)
             && IsRangeWithin(other)
-            && IsBranchAccessWithin(other);
+            && IsBranchAccessWithin(other)
+            && IsInvoiceTypeAccessWithin(other);
     }
 
     private bool IsRangeWithin(PermissionDefinition other)
@@ -35,5 +38,11 @@ public class PermissionDefinition
     private bool IsBranchAccessWithin(PermissionDefinition other)
     {
         return !CanAccessAllBranches || other.CanAccessAllBranches;
+    }
+
+    private bool IsInvoiceTypeAccessWithin(PermissionDefinition other)
+    {
+        return (!CanCreateSalesInvoices || other.CanCreateSalesInvoices)
+            && (!CanCreateReturnInvoices || other.CanCreateReturnInvoices);
     }
 }

@@ -14,6 +14,8 @@ public class MyPermissionsResponse
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
     public bool CanAccessAllBranches { get; set; }
+    public bool CanCreateSalesInvoices { get; set; }
+    public bool CanCreateReturnInvoices { get; set; }
     public int? BranchId { get; set; }
     public List<InvoiceSeriesOptionResponse> AvailableInvoiceSeries { get; set; } = new();
     public List<BranchOptionResponse> AvailableBranches { get; set; } = new();

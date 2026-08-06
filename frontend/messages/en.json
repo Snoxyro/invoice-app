@@ -10,7 +10,7 @@
     "logout": "Log Out",
     "firms": "Firms",
     "profiles": "Profiles",
-    "invoiceSettings": "Invoice Settings"
+    "invoiceCustomization": "Invoice Customization"
   },
   "home": {
     "greetingPrefix": "Hello,"
@@ -85,6 +85,7 @@
     "columnTitle": "Title",
     "columnTaxNumber": "Tax Number",
     "columnEmail": "Email",
+    "columnPhone": "Phone",
     "columnBranch": "Branch",
     "columnCreatedDate": "Created",
     "columnUpdatedDate": "Last Updated",
@@ -97,6 +98,7 @@
     "titleLabel": "Title",
     "taxNumberLabel": "Tax Number",
     "emailLabel": "Email",
+    "phoneLabel": "Phone",
     "addressLabel": "Address",
     "deleteTitle": "Delete Customer",
     "deleteDescription": "Are you sure you want to delete \"{title}\"? This action cannot be undone."
@@ -176,6 +178,12 @@
     "deleteTitle": "Delete Invoice",
     "deleteDescription": "Are you sure you want to delete invoice \"{invoiceNumber}\"? This action cannot be undone.",
     "typeReturnBadge": "Return",
+    "typeSalesBadge": "Sales",
+    "columnInvoiceType": "Invoice Type",
+    "typeFilterLabel": "Invoice Type",
+    "typeAll": "All",
+    "returnReferenceLabel": "Return",
+    "originalReferenceLabel": "Source",
     "returnButton": "Create Return Invoice",
     "returnConfirmTitle": "Create Return Invoice",
     "returnConfirmDescription": "A new draft return invoice will be created for invoice \"{invoiceNumber}\". Do you want to continue?",
@@ -216,6 +224,7 @@
     "resourceCustomers": "Customers",
     "resourceInvoices": "Invoices",
     "resourceBranches": "Branches",
+    "resourceInvoiceCustomization": "Invoice Customization",
     "actionCreate": "Create",
     "actionRead": "Read",
     "actionUpdate": "Update",
@@ -225,6 +234,10 @@
     "branchAccessTitle": "Branch Access",
     "canAccessAllBranchesLabel": "Access all branches",
     "canAccessAllBranchesDisabledHint": "You can only grant this if you yourself have access to all branches",
+    "invoiceTypeAccessLabel": "Invoice Type Permissions",
+    "canCreateSalesInvoicesLabel": "Can Create Sales Invoices",
+    "canCreateReturnInvoicesLabel": "Can Create Return Invoices",
+    "invoiceTypeAccessDisabledHint": "You can only grant the invoice type permissions you yourself have",
     "deleteTitle": "Delete Profile",
     "deleteDescription": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
   },
@@ -344,11 +357,14 @@
     "EXEMPTION_REASON_REQUIRED": "An exemption reason is required when the exempt VAT rate is selected",
     "ORIGINAL_INVOICE_NOT_SENT_CANNOT_RETURN": "A return invoice can only be created from a sent invoice",
     "CANNOT_RETURN_A_RETURN_INVOICE": "A return invoice cannot itself be returned",
+    "CANNOT_CREATE_SALES_INVOICES": "Your profile does not have permission to create sales invoices",
+    "CANNOT_CREATE_RETURN_INVOICES": "Your profile does not have permission to create return invoices",
+    "RETURN_INVOICE_ALREADY_EXISTS": "Invoice \"{returnInvoiceNumber}\" is this invoice's return. Delete it first if you need to create a new one.",
     "SESSION_EXPIRED": "Your session has expired",
     "UNEXPECTED_ERROR": "An unexpected error occurred"
   },
-  "invoiceSettings": {
-    "title": "Invoice Settings",
+  "invoiceCustomization": {
+    "title": "Invoice Customization",
     "brandingTitle": "Brand Identity",
     "brandingDescription": "Set the logo, stamp, color, and font that appear on your invoices.",
     "logoLabel": "Logo",

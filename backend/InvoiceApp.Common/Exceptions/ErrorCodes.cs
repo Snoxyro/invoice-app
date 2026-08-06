@@ -49,6 +49,9 @@ public static class ErrorCodes
     public const string DuplicateCustomValueLabel = "DUPLICATE_CUSTOM_VALUE_LABEL";
     public const string OriginalInvoiceNotSentCannotReturn = "ORIGINAL_INVOICE_NOT_SENT_CANNOT_RETURN";
     public const string CannotReturnAReturnInvoice = "CANNOT_RETURN_A_RETURN_INVOICE";
+    public const string ReturnInvoiceAlreadyExists = "RETURN_INVOICE_ALREADY_EXISTS";
+    public const string CannotCreateSalesInvoices = "CANNOT_CREATE_SALES_INVOICES";
+    public const string CannotCreateReturnInvoices = "CANNOT_CREATE_RETURN_INVOICES";
     public const string InvalidFontFamily = "INVALID_FONT_FAMILY";
     public const string InvalidAccentColorFormat = "INVALID_ACCENT_COLOR_FORMAT";
     public const string InvalidLogoDimension = "INVALID_LOGO_DIMENSION";

@@ -57,7 +57,13 @@ public class ProfileService : IProfileService
         ValidateInvoiceRange(request.MinInvoiceAmount, request.MaxInvoiceAmount);
 
         var candidateDefinition = await BuildCandidateDefinitionAsync(
-            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount, request.CanAccessAllBranches);
+            request.PermissionIds,
+            request.VatRateIds,
+            request.MinInvoiceAmount,
+            request.MaxInvoiceAmount,
+            request.CanAccessAllBranches,
+            request.CanCreateSalesInvoices,
+            request.CanCreateReturnInvoices);
 
         if (!candidateDefinition.IsSubsetOf(callerContext))
         {
@@ -71,7 +77,9 @@ public class ProfileService : IProfileService
             IsSystem = false,
             MinInvoiceAmount = request.MinInvoiceAmount,
             MaxInvoiceAmount = request.MaxInvoiceAmount,
-            CanAccessAllBranches = request.CanAccessAllBranches
+            CanAccessAllBranches = request.CanAccessAllBranches,
+            CanCreateSalesInvoices = request.CanCreateSalesInvoices,
+            CanCreateReturnInvoices = request.CanCreateReturnInvoices
         };
 
         foreach (var permissionId in request.PermissionIds.Distinct())
@@ -135,7 +143,13 @@ public class ProfileService : IProfileService
         ValidateInvoiceRange(request.MinInvoiceAmount, request.MaxInvoiceAmount);
 
         var candidateDefinition = await BuildCandidateDefinitionAsync(
-            request.PermissionIds, request.VatRateIds, request.MinInvoiceAmount, request.MaxInvoiceAmount, request.CanAccessAllBranches);
+            request.PermissionIds,
+            request.VatRateIds,
+            request.MinInvoiceAmount,
+            request.MaxInvoiceAmount,
+            request.CanAccessAllBranches,
+            request.CanCreateSalesInvoices,
+            request.CanCreateReturnInvoices);
 
         if (!candidateDefinition.IsSubsetOf(callerContext))
         {
@@ -146,6 +160,8 @@ public class ProfileService : IProfileService
         profile.MinInvoiceAmount = request.MinInvoiceAmount;
         profile.MaxInvoiceAmount = request.MaxInvoiceAmount;
         profile.CanAccessAllBranches = request.CanAccessAllBranches;
+        profile.CanCreateSalesInvoices = request.CanCreateSalesInvoices;
+        profile.CanCreateReturnInvoices = request.CanCreateReturnInvoices;
 
         var existingPermissionLinks = await _profilePermissionRepository.Query()
             .Where(pp => pp.ProfileId == profileId)
@@ -312,7 +328,9 @@ public class ProfileService : IProfileService
         List<int> vatRateIds,
         decimal? minInvoiceAmount,
         decimal? maxInvoiceAmount,
-        bool canAccessAllBranches)
+        bool canAccessAllBranches,
+        bool canCreateSalesInvoices,
+        bool canCreateReturnInvoices)
     {
         var distinctPermissionIds = permissionIds.Distinct().ToList();
 
@@ -360,7 +378,9 @@ public class ProfileService : IProfileService
             VatRateIds = distinctVatRateIds.ToHashSet(),
             MinInvoiceAmount = minInvoiceAmount,
             MaxInvoiceAmount = maxInvoiceAmount,
-            CanAccessAllBranches = canAccessAllBranches
+            CanAccessAllBranches = canAccessAllBranches,
+            CanCreateSalesInvoices = canCreateSalesInvoices,
+            CanCreateReturnInvoices = canCreateReturnInvoices
         };
     }
 
@@ -382,6 +402,8 @@ public class ProfileService : IProfileService
             MinInvoiceAmount = profile.MinInvoiceAmount,
             MaxInvoiceAmount = profile.MaxInvoiceAmount,
             CanAccessAllBranches = profile.CanAccessAllBranches,
+            CanCreateSalesInvoices = profile.CanCreateSalesInvoices,
+            CanCreateReturnInvoices = profile.CanCreateReturnInvoices,
             PermissionIds = profile.ProfilePermissions.Select(pp => pp.PermissionId).ToList(),
             VatRateIds = profile.ProfileVatRates.Select(pv => pv.VatRateId).ToList(),
             CreatedDate = profile.CreatedDate,

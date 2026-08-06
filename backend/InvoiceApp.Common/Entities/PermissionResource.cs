@@ -7,5 +7,5 @@ public enum PermissionResource
     Customers = 2,
     Invoices = 3,
     Branches = 4,
-    InvoiceSettings = 5
+    InvoiceCustomization = 5
 }

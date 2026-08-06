@@ -20,6 +20,12 @@ public class ProfileConfiguration : IEntityTypeConfiguration<Profile>
         builder.Property(p => p.MaxInvoiceAmount)
             .HasColumnType("decimal(18,2)");
 
+        builder.Property(p => p.CanCreateSalesInvoices)
+            .HasDefaultValue(true);
+
+        builder.Property(p => p.CanCreateReturnInvoices)
+            .HasDefaultValue(true);
+
         builder.HasOne(p => p.Firm)
             .WithMany(f => f.Profiles)
             .HasForeignKey(p => p.FirmId)

@@ -49,6 +49,8 @@ public class PermissionService : IPermissionService
         context.MinInvoiceAmount = definition.MinInvoiceAmount;
         context.MaxInvoiceAmount = definition.MaxInvoiceAmount;
         context.CanAccessAllBranches = definition.CanAccessAllBranches;
+        context.CanCreateSalesInvoices = definition.CanCreateSalesInvoices;
+        context.CanCreateReturnInvoices = definition.CanCreateReturnInvoices;
 
         var profile = await _profileRepository.GetByIdAsync(user.ProfileId.Value);
         context.IsSystemProfile = profile?.IsSystem ?? false;
@@ -76,6 +78,8 @@ public class PermissionService : IPermissionService
             MinInvoiceAmount = profile.MinInvoiceAmount,
             MaxInvoiceAmount = profile.MaxInvoiceAmount,
             CanAccessAllBranches = profile.CanAccessAllBranches,
+            CanCreateSalesInvoices = profile.CanCreateSalesInvoices,
+            CanCreateReturnInvoices = profile.CanCreateReturnInvoices,
             PermissionIds = profile.ProfilePermissions.Select(pp => pp.PermissionId).ToHashSet(),
             Permissions = profile.ProfilePermissions
                 .Select(pp => (pp.Permission.Resource, pp.Permission.Action))

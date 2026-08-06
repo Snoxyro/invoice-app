@@ -8,6 +8,8 @@ public class ProfileResponse
     public decimal? MinInvoiceAmount { get; set; }
     public decimal? MaxInvoiceAmount { get; set; }
     public bool CanAccessAllBranches { get; set; }
+    public bool CanCreateSalesInvoices { get; set; }
+    public bool CanCreateReturnInvoices { get; set; }
     public List<int> PermissionIds { get; set; } = new();
     public List<int> VatRateIds { get; set; } = new();
     public DateTime CreatedDate { get; set; }

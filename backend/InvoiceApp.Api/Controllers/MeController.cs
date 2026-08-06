@@ -74,6 +74,8 @@ public class MeController : ControllerBase
             MinInvoiceAmount = context.MinInvoiceAmount,
             MaxInvoiceAmount = context.MaxInvoiceAmount,
             CanAccessAllBranches = context.CanAccessAllBranches,
+            CanCreateSalesInvoices = context.CanCreateSalesInvoices,
+            CanCreateReturnInvoices = context.CanCreateReturnInvoices,
             BranchId = context.BranchId,
             AvailableInvoiceSeries = availableSeries,
             AvailableBranches = availableBranches

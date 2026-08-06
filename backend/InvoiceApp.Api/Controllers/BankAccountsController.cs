@@ -21,7 +21,7 @@ public class BankAccountsController : ControllerBase
     }
 
     [HttpGet]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Read)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Read)]
     public async Task<ActionResult<List<BankAccountResponse>>> GetAll()
     {
         var result = await _bankAccountService.GetAllAsync(User.GetUserId());
@@ -29,7 +29,7 @@ public class BankAccountsController : ControllerBase
     }
 
     [HttpPost]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Create)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Create)]
     public async Task<ActionResult<BankAccountResponse>> Create(BankAccountCreateRequest request)
     {
         var result = await _bankAccountService.CreateAsync(User.GetUserId(), request);
@@ -37,7 +37,7 @@ public class BankAccountsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Update)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Update)]
     public async Task<ActionResult<BankAccountResponse>> Update(int id, BankAccountUpdateRequest request)
     {
         var result = await _bankAccountService.UpdateAsync(User.GetUserId(), id, request);
@@ -45,7 +45,7 @@ public class BankAccountsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [RequirePermission(PermissionResource.InvoiceSettings, PermissionAction.Delete)]
+    [RequirePermission(PermissionResource.InvoiceCustomization, PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
         await _bankAccountService.DeleteAsync(User.GetUserId(), id);

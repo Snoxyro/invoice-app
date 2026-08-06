@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ZoomableInvoicePreview } from "@/components/zoomable-invoice-preview";
 import { apiDownload, apiFetch, apiFetchText } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/apiErrorMessage";
 
@@ -128,17 +129,12 @@ export function InvoicePreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4">
-          {isLoading && (
-            <p className="py-8 text-center text-sm text-muted-foreground">{t("previewLoading")}</p>
-          )}
-          {!isLoading && html !== null && (
-            <iframe
-              srcDoc={html}
-              className="h-[60vh] w-full rounded-md border bg-white"
-              sandbox="allow-scripts"
-            />
-          )}
+        <div className="min-w-0 px-4">
+          <ZoomableInvoicePreview
+            html={html}
+            heightClassName="h-[60vh]"
+            emptyLabel={isLoading ? t("previewLoading") : ""}
+          />
         </div>
 
         {error && <p className="px-4 text-sm text-destructive">{error}</p>}

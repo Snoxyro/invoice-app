@@ -31,7 +31,7 @@ export function BankAccountsSection({
   canDelete,
   onDataChanged,
 }: BankAccountsSectionProps) {
-  const t = useTranslations("invoiceSettings");
+  const t = useTranslations("invoiceCustomization");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
 

@@ -26,6 +26,8 @@ interface ProfileResponse {
   minInvoiceAmount: number | null;
   maxInvoiceAmount: number | null;
   canAccessAllBranches: boolean;
+  canCreateSalesInvoices: boolean;
+  canCreateReturnInvoices: boolean;
   permissionIds: number[];
   vatRateIds: number[];
   createdDate: string;
@@ -50,7 +52,14 @@ interface ProfileFormDialogProps {
   onSuccess: (profile: ProfileResponse) => void;
 }
 
-const RESOURCE_ORDER: PermissionResource[] = ["Users", "Profiles", "Customers", "Invoices", "Branches"];
+const RESOURCE_ORDER: PermissionResource[] = [
+  "Users",
+  "Profiles",
+  "Customers",
+  "Invoices",
+  "Branches",
+  "InvoiceCustomization",
+];
 const ACTION_ORDER: PermissionActionType[] = ["Create", "Read", "Update", "Delete"];
 
 export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: ProfileFormDialogProps) {
@@ -63,6 +72,8 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     minInvoiceAmount: ownMin,
     maxInvoiceAmount: ownMax,
     canAccessAllBranches: ownCanAccessAllBranches,
+    canCreateSalesInvoices: ownCanCreateSalesInvoices,
+    canCreateReturnInvoices: ownCanCreateReturnInvoices,
   } = usePermissions();
 
   const isEditMode = profile !== null;
@@ -73,6 +84,8 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
   const [minInvoiceAmount, setMinInvoiceAmount] = useState("");
   const [maxInvoiceAmount, setMaxInvoiceAmount] = useState("");
   const [canAccessAllBranches, setCanAccessAllBranches] = useState(false);
+  const [canCreateSalesInvoices, setCanCreateSalesInvoices] = useState(true);
+  const [canCreateReturnInvoices, setCanCreateReturnInvoices] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +104,8 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     setMinInvoiceAmount(profile?.minInvoiceAmount != null ? String(profile.minInvoiceAmount) : "");
     setMaxInvoiceAmount(profile?.maxInvoiceAmount != null ? String(profile.maxInvoiceAmount) : "");
     setCanAccessAllBranches(profile?.canAccessAllBranches ?? false);
+    setCanCreateSalesInvoices(profile?.canCreateSalesInvoices ?? true);
+    setCanCreateReturnInvoices(profile?.canCreateReturnInvoices ?? true);
     setError(null);
   }, [open, profile]);
 
@@ -206,6 +221,8 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
       minInvoiceAmount: minInvoiceAmount === "" ? null : Number(minInvoiceAmount),
       maxInvoiceAmount: maxInvoiceAmount === "" ? null : Number(maxInvoiceAmount),
       canAccessAllBranches,
+      canCreateSalesInvoices,
+      canCreateReturnInvoices,
     };
 
     try {
@@ -244,6 +261,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
     Customers: t("resourceCustomers"),
     Invoices: t("resourceInvoices"),
     Branches: t("resourceBranches"),
+    InvoiceCustomization: t("resourceInvoiceCustomization"),
   };
 
   const actionLabels: Record<PermissionActionType, string> = {
@@ -343,6 +361,38 @@ export function ProfileFormDialog({ open, onOpenChange, profile, onSuccess }: Pr
               {!canEditInvoicesInThisProfile && (
                 <p className="text-xs text-muted-foreground">{t("invoiceSettingsDisabledHint")}</p>
               )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm font-normal text-muted-foreground">{t("invoiceTypeAccessLabel")}</Label>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="canCreateSalesInvoices"
+                    checked={canCreateSalesInvoices}
+                    onCheckedChange={() => setCanCreateSalesInvoices((prev) => !prev)}
+                    disabled={!canEditInvoicesInThisProfile || !ownCanCreateSalesInvoices}
+                  />
+                  <Label htmlFor="canCreateSalesInvoices" className="cursor-pointer font-normal">
+                    {t("canCreateSalesInvoicesLabel")}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="canCreateReturnInvoices"
+                    checked={canCreateReturnInvoices}
+                    onCheckedChange={() => setCanCreateReturnInvoices((prev) => !prev)}
+                    disabled={!canEditInvoicesInThisProfile || !ownCanCreateReturnInvoices}
+                  />
+                  <Label htmlFor="canCreateReturnInvoices" className="cursor-pointer font-normal">
+                    {t("canCreateReturnInvoicesLabel")}
+                  </Label>
+                </div>
+              </div>
+              {canEditInvoicesInThisProfile &&
+                (!ownCanCreateSalesInvoices || !ownCanCreateReturnInvoices) && (
+                  <p className="text-xs text-muted-foreground">{t("invoiceTypeAccessDisabledHint")}</p>
+                )}
             </div>
 
             <div className="flex flex-col gap-2">

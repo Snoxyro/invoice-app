@@ -21,6 +21,7 @@ public class FirmService : IFirmService
     private const string SampleCustomerTitle = "ÖRNEK MÜŞTERİ A.Ş.";
     private const string SampleCustomerTaxNumber = "1234567890";
     private const string SampleCustomerAddress = "Örnek Mahallesi, Örnek Caddesi No:1, İstanbul";
+    private const string SampleCustomerPhone = "+90 212 000 00 00";
     private const string SampleLineItemName = "Örnek Ürün / Hizmet";
     private const string SampleCustomFieldLabel = "Örnek Alan";
     private const string SampleCustomValueText = "Örnek Değer";
@@ -328,6 +329,7 @@ public class FirmService : IFirmService
             TaxNumber = SampleCustomerTaxNumber,
             Title = SampleCustomerTitle,
             Address = SampleCustomerAddress,
+            Phone = SampleCustomerPhone,
             Email = string.Empty
         };
 
